@@ -1,5 +1,5 @@
 <script setup>
-import { computed, h, nextTick, reactive, ref } from 'vue'
+import { computed, h, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AddLink from '@/components/icons/AddLink.vue'
 import { NButton, NIcon, useThemeVars } from 'naive-ui'
@@ -17,8 +17,8 @@ import Edit from '@/components/icons/Edit.vue'
 import FormatSelector from '@/components/content_value/FormatSelector.vue'
 import { decodeRedisKey } from '@/utils/key_convert.js'
 import ContentSearchInput from '@/components/content_value/ContentSearchInput.vue'
-import { ClipboardSetText } from 'wailsjs/runtime/runtime.js'
 import { formatBytes } from '@/utils/byte_convert.js'
+import copy from 'copy-text-to-clipboard'
 
 const i18n = useI18n()
 const themeVars = useThemeVars()
@@ -89,14 +89,17 @@ const fieldColumn = computed(() => ({
             },
             scrollable: true,
         },
-        lineClamp: 10,
+        lineClamp: 1,
     },
     filterOptionValue: fieldFilterOption.value,
-    className: inEdit.value ? 'clickable' : '',
+    className: inEdit.value ? 'clickable wordline' : 'wordline',
     filter: (value, row) => {
         return !!~row.k.indexOf(value.toString())
     },
     render: (row) => {
+        if (row.rm === true) {
+            return h('s', {}, decodeRedisKey(row.k))
+        }
         return decodeRedisKey(row.k)
     },
 }))
@@ -121,6 +124,7 @@ const valueColumn = computed(() => ({
                   },
                   scrollable: true,
               },
+              lineClamp: 1,
           },
     // filterOptionValue: valueFilterOption.value,
     className: inEdit.value ? 'clickable' : '',
@@ -132,7 +136,10 @@ const valueColumn = computed(() => ({
     // },
     render: (row) => {
         if (isCode.value) {
-            return h('pre', {}, row.dv || row.v)
+            return h('pre', { class: 'pre-wrap' }, row.dv || row.v)
+        }
+        if (row.rm === true) {
+            return h('s', {}, row.dv || row.v)
         }
         return row.dv || row.v
     },
@@ -185,9 +192,9 @@ const resetEdit = () => {
     currentEditRow.no = 0
     currentEditRow.key = ''
     currentEditRow.value = null
-    if (currentEditRow.format !== props.format || currentEditRow.decode !== props.decode) {
-        nextTick(() => onFormatChanged(currentEditRow.decode, currentEditRow.format))
-    }
+    // if (currentEditRow.format !== props.format || currentEditRow.decode !== props.decode) {
+    //     nextTick(() => onFormatChanged(currentEditRow.decode, currentEditRow.format))
+    // }
     // currentEditRow.format = formatTypes.RAW
     // currentEditRow.decode = decodeTypes.NONE
 }
@@ -203,15 +210,28 @@ const actionColumn = {
         return h(EditableTableColumn, {
             editing: false,
             bindKey: row.k,
-            onCopy: async () => {
-                try {
-                    const succ = await ClipboardSetText(row.v)
-                    if (succ) {
-                        $message.success(i18n.t('interface.copy_succ'))
-                    }
-                } catch (e) {
-                    $message.error(e.message)
+            canRefresh: true,
+            onRefresh: async () => {
+                const { updated, success, msg } = await browserStore.getHashField({
+                    server: props.name,
+                    db: props.db,
+                    key: keyName.value,
+                    field: row.k,
+                    decode: props.decode,
+                    format: props.format,
+                })
+                if (success) {
+                    delete props.value[index]['rm']
+                    $message.success(i18n.t('dialogue.reload_succ'))
+                } else {
+                    // update fail, the key may have been deleted
+                    $message.error(msg)
+                    props.value[index]['rm'] = true
                 }
+            },
+            onCopy: async () => {
+                copy(row.v)
+                $message.success(i18n.t('interface.copy_succ'))
             },
             onEdit: () => startEdit(index + 1, row.k, row.v),
             onDelete: async () => {

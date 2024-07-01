@@ -3,20 +3,19 @@ import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { debounce, filter, get, includes, isEmpty, join } from 'lodash'
 import { useI18n } from 'vue-i18n'
 import { useThemeVars } from 'naive-ui'
-import useBrowserStore from 'stores/browser.js'
 import Play from '@/components/icons/Play.vue'
 import Pause from '@/components/icons/Pause.vue'
 import { ExportLog, StartMonitor, StopMonitor } from 'wailsjs/go/services/monitorService.js'
-import { ClipboardSetText, EventsOff, EventsOn } from 'wailsjs/runtime/runtime.js'
+import { EventsOff, EventsOn } from 'wailsjs/runtime/runtime.js'
 import Copy from '@/components/icons/Copy.vue'
 import Export from '@/components/icons/Export.vue'
 import Delete from '@/components/icons/Delete.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import Bottom from '@/components/icons/Bottom.vue'
+import copy from 'copy-text-to-clipboard'
 
 const themeVars = useThemeVars()
 
-const browserStore = useBrowserStore()
 const i18n = useI18n()
 const props = defineProps({
     server: {
@@ -95,15 +94,8 @@ const onStopMonitor = async () => {
 }
 
 const onCopyLog = async () => {
-    try {
-        const content = join(data.list, '\n')
-        const succ = await ClipboardSetText(content)
-        if (succ) {
-            $message.success(i18n.t('interface.copy_succ'))
-        }
-    } catch (e) {
-        $message.error(e.message)
-    }
+    copy(join(data.list, '\n'))
+    $message.success(i18n.t('interface.copy_succ'))
 }
 
 const onExportLog = () => {

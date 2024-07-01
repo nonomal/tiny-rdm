@@ -63,6 +63,10 @@ body {
     cursor: pointer;
 }
 
+.wordline {
+    word-break: break-all;
+}
+
 .icon-btn {
     @extend .clickable;
     line-height: 100%;
@@ -171,6 +175,10 @@ body {
 
 .auto-rotate {
     animation: rotate 2s linear infinite;
+}
+
+.pre-wrap {
+    white-space: pre-wrap;
 }
 
 @keyframes rotate {

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, h, nextTick, reactive, ref } from 'vue'
+import { computed, h, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AddLink from '@/components/icons/AddLink.vue'
 import { NButton, NIcon, useThemeVars } from 'naive-ui'
@@ -16,8 +16,8 @@ import ContentEntryEditor from '@/components/content_value/ContentEntryEditor.vu
 import FormatSelector from '@/components/content_value/FormatSelector.vue'
 import Edit from '@/components/icons/Edit.vue'
 import ContentSearchInput from '@/components/content_value/ContentSearchInput.vue'
-import { ClipboardSetText } from 'wailsjs/runtime/runtime.js'
 import { formatBytes } from '@/utils/byte_convert.js'
+import copy from 'copy-text-to-clipboard'
 
 const i18n = useI18n()
 const themeVars = useThemeVars()
@@ -144,6 +144,7 @@ const valueColumn = computed(() => ({
                   },
                   scrollable: true,
               },
+              lineClamp: 1,
           },
     filterOptionValue: valueFilterOption.value,
     className: inEdit.value ? 'clickable' : '',
@@ -156,7 +157,7 @@ const valueColumn = computed(() => ({
     // sorter: (row1, row2) => row1.value - row2.value,
     render: (row) => {
         if (isCode.value) {
-            return h('pre', {}, row.dv || row.v)
+            return h('pre', { class: 'pre-wrap' }, row.dv || row.v)
         }
         return row.dv || row.v
     },
@@ -206,9 +207,9 @@ const resetEdit = () => {
     currentEditRow.no = 0
     currentEditRow.score = 0
     currentEditRow.value = null
-    if (currentEditRow.format !== props.format || currentEditRow.decode !== props.decode) {
-        nextTick(() => onFormatChanged(currentEditRow.decode, currentEditRow.format))
-    }
+    // if (currentEditRow.format !== props.format || currentEditRow.decode !== props.decode) {
+    //     nextTick(() => onFormatChanged(currentEditRow.decode, currentEditRow.format))
+    // }
 }
 
 const actionColumn = {
@@ -223,14 +224,8 @@ const actionColumn = {
             editing: false,
             bindKey: row.v,
             onCopy: async () => {
-                try {
-                    const succ = await ClipboardSetText(row.v)
-                    if (succ) {
-                        $message.success(i18n.t('interface.copy_succ'))
-                    }
-                } catch (e) {
-                    $message.error(e.message)
-                }
+                copy(row.v)
+                $message.success(i18n.t('interface.copy_succ'))
             },
             onEdit: () => startEdit(index + 1, row.s, row.v),
             onDelete: async () => {

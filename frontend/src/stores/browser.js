@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { endsWith, get, isEmpty, map, now, size } from 'lodash'
+import { endsWith, get, isEmpty, join, map, now, size, slice, split } from 'lodash'
 import {
     AddHashField,
     AddListItem,
@@ -11,10 +11,12 @@ import {
     ConvertValue,
     DeleteKey,
     DeleteKeys,
+    DeleteKeysByPattern,
     ExportKey,
     FlushDB,
     GetClientList,
     GetCmdHistory,
+    GetHashValue,
     GetKeyDetail,
     GetKeySummary,
     GetKeyType,
@@ -109,7 +111,7 @@ const useBrowserStore = defineStore('browser', {
 
         /**
          * get database info list
-         * @param server
+         * @param {string} server
          * @return {RedisDatabaseItem[]}
          */
         getDBList(server) {
@@ -118,6 +120,18 @@ const useBrowserStore = defineStore('browser', {
                 return serverInst.getDatabase()
             }
             return []
+        },
+
+        /**
+         * get server version
+         * @param {string} server
+         */
+        getServerVersion(server) {
+            const serverInst = this.servers[server]
+            if (serverInst != null) {
+                return serverInst.version
+            }
+            return '1.0.0'
         },
 
         /**
@@ -238,7 +252,7 @@ const useBrowserStore = defineStore('browser', {
             // if (connNode == null) {
             //     throw new Error('no such connection')
             // }
-            const { db, view = KeyViewType.Tree, lastDB } = data
+            const { db, view = KeyViewType.Tree, lastDB, version } = data
             if (isEmpty(db)) {
                 throw new Error('no db loaded')
             }
@@ -247,6 +261,7 @@ const useBrowserStore = defineStore('browser', {
                 separator: this.getSeparator(name),
                 db: -1,
                 viewType: view,
+                version,
             })
             /** @type {Object.<number,RedisDatabaseItem>} **/
             const databases = {}
@@ -343,10 +358,11 @@ const useBrowserStore = defineStore('browser', {
 
         /**
          *
-         * @param server
+         * @param {string} server
+         * @param {boolean} mute
          * @returns {Promise<{}>}
          */
-        async getServerInfo(server) {
+        async getServerInfo(server, mute) {
             try {
                 const { success, data, msg } = await ServerInfo(server)
                 if (success) {
@@ -356,7 +372,7 @@ const useBrowserStore = defineStore('browser', {
                         serverInst.stats = data
                     }
                     return data
-                } else if (!isEmpty(msg)) {
+                } else if (!isEmpty(msg) && mute !== true) {
                     $message.warning(msg)
                 }
             } finally {
@@ -774,6 +790,37 @@ const useBrowserStore = defineStore('browser', {
         },
 
         /**
+         * get parent tree node by key name
+         * @param key
+         * @return {RedisNodeItem|null}
+         */
+        getParentNode(key) {
+            const i = key.indexOf('#')
+            if (i < 0) {
+                return null
+            }
+            const [server, db] = split(key.substring(0, i), '/')
+            if (isEmpty(server) || isEmpty(db)) {
+                return null
+            }
+            /** @type {RedisServerState} **/
+            const serverInst = this.servers[server]
+            if (serverInst == null) {
+                return null
+            }
+            const separator = this.getSeparator(server)
+            const keyPart = key.substring(i)
+            const keyStartIdx = keyPart.indexOf('/')
+            const redisKey = keyPart.substring(keyStartIdx + 1)
+            const redisKeyParts = split(redisKey, separator)
+            const parentKey = slice(redisKeyParts, 0, size(redisKeyParts) - 1)
+            if (isEmpty(parentKey)) {
+                return serverInst.getRoot()
+            }
+            return serverInst.nodeMap.get(`${ConnectionType.RedisKey}/${join(parentKey, separator)}`)
+        },
+
+        /**
          * set redis key
          * @param {string} server
          * @param {number} db
@@ -800,7 +847,7 @@ const useBrowserStore = defineStore('browser', {
                 if (success) {
                     /** @type RedisServerState **/
                     const serverInst = this.servers[server]
-                    if (serverInst != null) {
+                    if (serverInst != null && serverInst.db === db) {
                         // const { value } = data
                         // update tree view data
                         const { newKey = 0 } = serverInst.addKeyNodes([key], true)
@@ -808,11 +855,12 @@ const useBrowserStore = defineStore('browser', {
                             serverInst.tidyNode(key)
                             serverInst.updateDBKeyCount(db, newKey)
                         }
-                    }
-                    const { value: updatedValue } = data
-                    if (updatedValue != null) {
-                        const tab = useTabStore()
-                        tab.updateValue({ server, db, key, value: updatedValue })
+
+                        const { value: updatedValue } = data
+                        if (updatedValue != null) {
+                            const tab = useTabStore()
+                            tab.updateValue({ server, db, key, value: updatedValue })
+                        }
                     }
                     // this.loadKeySummary({ server, db, key })
                     return {
@@ -946,6 +994,31 @@ const useBrowserStore = defineStore('browser', {
                         this.loadKeySummary({ server, db, key })
                     }
                     return { success, updated, added }
+                } else {
+                    return { success: false, msg }
+                }
+            } catch (e) {
+                return { success: false, msg: e.message }
+            }
+        },
+
+        /**
+         * get hash field
+         * @param {string} server
+         * @param {number} db
+         * @param {string} key
+         * @param {string} field
+         * @param {decodeTypes} [decode]
+         * @param {formatTypes} [format]
+         * @return {Promise<{{msg: string, success: boolean, updated: HashEntryItem[]}>}
+         */
+        async getHashField({ server, db, key, field, decode = decodeTypes.NONE, format = formatTypes.RAW }) {
+            try {
+                const { data, success, msg } = await GetHashValue({ server, db, key, field, decode, format })
+                if (success && !isEmpty(data)) {
+                    const tab = useTabStore()
+                    tab.updateValueEntries({ server, db, key, type: 'hash', entries: [data] })
+                    return { success, updated: data }
                 } else {
                     return { success: false, msg }
                 }
@@ -1669,6 +1742,66 @@ const useBrowserStore = defineStore('browser', {
             }
             try {
                 const { success, msg, data } = await DeleteKeys(server, db, keys, serialNo)
+                if (success) {
+                    canceled = get(data, 'canceled', false)
+                    deleted = get(data, 'deleted', [])
+                    failCount = get(data, 'failed', 0)
+                } else {
+                    $message.error(msg)
+                }
+            } finally {
+                msgRef.destroy()
+                // clear checked keys
+                const tab = useTabStore()
+                tab.setCheckedKeys(server)
+            }
+            // refresh model data
+            const deletedCount = size(deleted)
+            if (canceled) {
+                $message.info(i18nGlobal.t('dialogue.handle_cancel'))
+            } else if (failCount <= 0) {
+                // no fail
+                $message.success(i18nGlobal.t('dialogue.delete.completed', { success: deletedCount, fail: failCount }))
+            } else if (failCount >= deletedCount) {
+                // all fail
+                $message.error(i18nGlobal.t('dialogue.delete.completed', { success: deletedCount, fail: failCount }))
+            } else {
+                // some fail
+                $message.warning(i18nGlobal.t('dialogue.delete.completed', { success: deletedCount, fail: failCount }))
+            }
+            // update ui
+            timeout(100).then(async () => {
+                /** @type RedisServerState **/
+                const serverInst = this.servers[server]
+                if (serverInst != null) {
+                    let start = now()
+                    for (let i = 0; i < deleted.length; i++) {
+                        serverInst.removeKeyNode(deleted[i], false)
+                        if (now() - start > 300) {
+                            await timeout(100)
+                            start = now()
+                        }
+                    }
+                    serverInst.tidyNode('', true)
+                    serverInst.updateDBKeyCount(db, -deletedCount)
+                }
+            })
+        },
+
+        /**
+         * delete multiple keys by pattern
+         * @param server
+         * @param db
+         * @param pattern
+         * @return {Promise<void>}
+         */
+        async deleteByPattern(server, db, pattern) {
+            const msgRef = $message.loading(i18nGlobal.t('dialogue.delete.deleting'), { duration: 0, closable: true })
+            let deleted = []
+            let failCount = 0
+            let canceled = false
+            try {
+                const { success, msg, data } = await DeleteKeysByPattern(server, db, pattern)
                 if (success) {
                     canceled = get(data, 'canceled', false)
                     deleted = get(data, 'deleted', [])

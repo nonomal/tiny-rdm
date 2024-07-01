@@ -14,7 +14,6 @@ import useDialogStore from 'stores/dialog.js'
 import { useI18n } from 'vue-i18n'
 import ContentToolbar from '@/components/content_value/ContentToolbar.vue'
 import ContentValueJson from '@/components/content_value/ContentValueJson.vue'
-import { isMacOS } from '@/utils/platform.js'
 
 const themeVars = useThemeVars()
 const browserStore = useBrowserStore()
@@ -133,23 +132,14 @@ const onKeyShortcut = (e) => {
         case 'Delete':
             onDelete()
             return
-
-        case 'd':
-            if (e.metaKey) {
-                onDelete()
-            }
-            return
-
         case 'F5':
             onReload()
             return
-
         case 'r':
-            if (e.metaKey && isMacOS()) {
+            if (e.metaKey) {
                 onReload()
             }
             return
-
         case 'F2':
             onRename()
             return
