@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { get, isEmpty, isObject, uniq } from 'lodash'
+import { get, isEmpty, isObject, union, uniq } from 'lodash'
 import {
     CreateGroup,
     DeleteConnection,
@@ -13,7 +13,7 @@ import {
     SaveConnection,
     SaveLastDB,
     SaveRefreshInterval,
-    SaveSortedConnection,
+    SaveSortedConnection
 } from 'wailsjs/go/services/connectionService.js'
 import { ConnectionType } from '@/consts/connection_type.js'
 import { KeyViewType } from '@/consts/key_view_type.js'
@@ -210,7 +210,8 @@ const useConnectionStore = defineStore('connections', {
 
         mergeConnectionProfile(dest, src) {
             const mergeObj = (destObj, srcObj) => {
-                for (const k in srcObj) {
+                const keys = union(Object.keys(destObj), Object.keys(srcObj))
+                for (const k of keys) {
                     const t = typeof srcObj[k]
                     if (t === 'string') {
                         destObj[k] = srcObj[k] || destObj[k] || ''
@@ -430,8 +431,8 @@ const useConnectionStore = defineStore('connections', {
             if (!success) {
                 if (!isEmpty(msg)) {
                     $message.error(msg)
-                    return
                 }
+                return
             }
 
             $message.success(i18nGlobal.t('dialogue.handle_succ'))
@@ -446,8 +447,8 @@ const useConnectionStore = defineStore('connections', {
             if (!success) {
                 if (!isEmpty(msg)) {
                     $message.error(msg)
-                    return
                 }
+                return
             }
 
             $message.success(i18nGlobal.t('dialogue.handle_succ'))

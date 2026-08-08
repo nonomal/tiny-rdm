@@ -13,10 +13,16 @@ func (BinaryConvert) Enable() bool {
 }
 
 func (BinaryConvert) Encode(str string) (string, bool) {
-	var result strings.Builder
 	total := len(str)
+	if total%8 != 0 {
+		return str, false
+	}
+	var result strings.Builder
 	for i := 0; i < total; i += 8 {
-		b, _ := strconv.ParseInt(str[i:i+8], 2, 8)
+		b, err := strconv.ParseUint(str[i:i+8], 2, 8)
+		if err != nil {
+			return str, false
+		}
 		result.WriteByte(byte(b))
 	}
 	return result.String(), true
@@ -24,7 +30,7 @@ func (BinaryConvert) Encode(str string) (string, bool) {
 
 func (BinaryConvert) Decode(str string) (string, bool) {
 	var binary strings.Builder
-	for _, char := range str {
+	for _, char := range []byte(str) {
 		binary.WriteString(fmt.Sprintf("%08b", int(char)))
 	}
 	return binary.String(), true

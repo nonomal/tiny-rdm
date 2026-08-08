@@ -1,5 +1,5 @@
 <script setup>
-import { every, get, includes, isEmpty, map, reject, sortBy, toNumber } from 'lodash'
+import { every, get, includes, isEmpty, map, reject, sortBy, toNumber, trim } from 'lodash'
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ListSentinelMasters, TestConnection } from 'wailsjs/go/services/connectionService.js'
@@ -12,6 +12,7 @@ import { useThemeVars } from 'naive-ui'
 import useBrowserStore from 'stores/browser.js'
 import Delete from '@/components/icons/Delete.vue'
 import Add from '@/components/icons/Add.vue'
+import AddGroup from '@/components/icons/AddGroup.vue'
 import IconButton from '@/components/common/IconButton.vue'
 
 /**
@@ -75,9 +76,7 @@ const onUpdateDBFilterType = (t) => {
     }
 }
 
-const aliasPair = ref([
-    /*{ db: 0, alias: '' }*/
-])
+const aliasPair = ref([/*{ db: 0, alias: '' }*/])
 const onCreateAlias = () => {
     return {
         db: 0,
@@ -169,9 +168,11 @@ const onSaveConnection = async () => {
         generalForm.value.network = 'unix'
         generalForm.value.addr = ''
         generalForm.value.port = 0
+        generalForm.value.sock = trim(generalForm.value.sock)
     } else {
         generalForm.value.network = 'tcp'
         generalForm.value.sock = ''
+        generalForm.value.addr = trim(generalForm.value.addr)
     }
 
     // trim advance data
@@ -189,6 +190,11 @@ const onSaveConnection = async () => {
         switch (generalForm.value.ssh.loginType) {
             case 'pkfile':
                 generalForm.value.ssh.password = ''
+                break
+            case 'agent':
+                generalForm.value.ssh.password = ''
+                generalForm.value.ssh.pkFile = ''
+                generalForm.value.ssh.passphrase = ''
                 break
             default:
                 generalForm.value.ssh.pkFile = ''
@@ -293,6 +299,12 @@ const onClose = () => {
     dialogStore.closeConnDialog()
 }
 
+const onNewGroup = () => {
+    dialogStore.openNewGroupDialog((newGroupName) => {
+        generalForm.value.group = newGroupName
+    })
+}
+
 const pasteFromClipboard = async () => {
     // url example:
     // rediss://user:password@localhost:6789/3?dial_timeout=3&db=1&read_timeout=6s&max_retries=2
@@ -369,10 +381,21 @@ const pasteFromClipboard = async () => {
                                 :label="$t('dialogue.connection.group')"
                                 :span="24"
                                 required>
-                                <n-select
-                                    v-model:value="generalForm.group"
-                                    :options="groupOptions"
-                                    :render-label="({ label, value }) => (value === '' ? $t(label) : label)" />
+                                <div class="connection-group-selector">
+                                    <n-select
+                                        v-model:value="generalForm.group"
+                                        class="connection-group-select"
+                                        :options="groupOptions"
+                                        :render-label="({ label, value }) => (value === '' ? $t(label) : label)" />
+                                    <div class="connection-group-action">
+                                        <icon-button
+                                            :icon="AddGroup"
+                                            :stroke-width="3.5"
+                                            size="20"
+                                            t-tooltip="interface.new_group"
+                                            @click="onNewGroup()" />
+                                    </div>
+                                </div>
                             </n-form-item-gi>
                             <n-form-item-gi :label="$t('dialogue.connection.addr')" :span="24" path="addr" required>
                                 <n-input-group>
@@ -505,7 +528,7 @@ const pasteFromClipboard = async () => {
                                 </n-radio-group>
                             </n-form-item-gi>
                             <n-form-item-gi
-                                v-show="generalForm.dbFilterType !== 'none'"
+                                v-if="generalForm.dbFilterType !== 'none'"
                                 :label="$t('dialogue.connection.advn.dbfilter_input')"
                                 :span="24">
                                 <n-select
@@ -648,10 +671,11 @@ const pasteFromClipboard = async () => {
                             <n-radio-group v-model:value="generalForm.ssh.loginType">
                                 <n-radio-button :label="$t('dialogue.connection.pwd')" value="pwd" />
                                 <n-radio-button :label="$t('dialogue.connection.ssh.pkfile')" value="pkfile" />
+                                <n-radio-button :label="$t('dialogue.connection.ssh.agent')" value="agent" />
                             </n-radio-group>
                         </n-form-item>
                         <n-form-item
-                            v-if="sshLoginType === 'pwd' || sshLoginType === 'pkfile'"
+                            v-if="sshLoginType === 'pwd' || sshLoginType === 'pkfile' || sshLoginType === 'agent'"
                             :label="$t('dialogue.connection.usr')">
                             <n-input
                                 v-model:value="generalForm.ssh.username"
@@ -846,5 +870,24 @@ const pasteFromClipboard = async () => {
     border-style: solid;
     cursor: pointer;
     border-radius: 50%;
+}
+
+.connection-group-selector {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 4px;
+}
+
+.connection-group-select {
+    flex: 1;
+    min-width: 0;
+}
+
+.connection-group-action {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    margin: 0 0 0 5px;
 }
 </style>

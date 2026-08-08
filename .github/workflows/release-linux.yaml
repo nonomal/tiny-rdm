@@ -1,4 +1,5 @@
 name: Release Linux App
+run-name: ${{ github.event.release.tag_name || github.event.inputs.tag }}
 
 on:
   release:
@@ -13,7 +14,7 @@ on:
 jobs:
   release:
     name: Release Linux App
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         platform:
@@ -52,7 +53,7 @@ jobs:
           fi
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         with:
           go-version: stable
 
@@ -69,7 +70,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
-          node-version: 18
+          node-version: 22
 
       - name: Build frontend assets
         shell: bash
@@ -93,11 +94,13 @@ jobs:
         shell: bash
         run: |
           content=$(cat build/linux/tiny-rdm_0.0.0_amd64/DEBIAN/control)
-          content=$(echo "$content" | sed -e "s/{{.Name}}/$(jq -r '.name' wails.json)/g")
+          name=$(jq -r '.name' wails.json | tr -d ' ' | tr '[:upper:]' '[:lower:]')
+          content=$(echo "$content" | sed -e "s/{{.Name}}/$name/g")
           content=$(echo "$content" | sed -e "s/{{.Info.ProductVersion}}/$(jq -r '.info.productVersion' wails.json)/g")
           content=$(echo "$content" | sed -e "s/{{.Author.Name}}/$(jq -r '.author.name' wails.json)/g")
           content=$(echo "$content" | sed -e "s/{{.Author.Email}}/$(jq -r '.author.email' wails.json)/g")
           content=$(echo "$content" | sed -e "s/{{.Info.Comments}}/$(jq -r '.info.comments' wails.json)/g")
+          content=$(echo "$content" | sed -e "s/{{.libwebkit2gtk.PackageName}}/libwebkit2gtk-4.0-37/g")
           echo $content
           echo "$content" > build/linux/tiny-rdm_0.0.0_amd64/DEBIAN/control
 

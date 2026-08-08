@@ -5,13 +5,13 @@ import Copy from '@/components/icons/Copy.vue'
 import Save from '@/components/icons/Save.vue'
 import { useThemeVars } from 'naive-ui'
 import { types as redisTypes } from '@/consts/support_redis_type.js'
-import { ClipboardSetText } from 'wailsjs/runtime/runtime.js'
 import { isEmpty, toLower } from 'lodash'
 import useBrowserStore from 'stores/browser.js'
 import { decodeRedisKey } from '@/utils/key_convert.js'
 import ContentEditor from '@/components/content_value/ContentEditor.vue'
 import { decodeTypes, formatTypes } from '@/consts/value_view_type.js'
 import { formatBytes } from '@/utils/byte_convert.js'
+import { ClipboardSetText } from 'wailsjs/runtime/runtime.js'
 
 const props = defineProps({
     name: String,
@@ -61,16 +61,9 @@ const showMemoryUsage = computed(() => {
 /**
  * Copy value
  */
-const onCopyValue = () => {
-    ClipboardSetText(displayValue.value)
-        .then((succ) => {
-            if (succ) {
-                $message.success(i18n.t('interface.copy_succ'))
-            }
-        })
-        .catch((e) => {
-            $message.error(e.message)
-        })
+const onCopyValue = async () => {
+    await ClipboardSetText(displayValue.value)
+    $message.success(i18n.t('interface.copy_succ'))
 }
 
 /**

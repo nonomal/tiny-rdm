@@ -13,10 +13,10 @@
     "minute": "Minuto(s)",
     "hour": "Hora(s)",
     "day": "Dia(s)",
-    "unit_day": "D",
-    "unit_hour": "H",
-    "unit_minute": "M",
-    "unit_second": "S",
+    "unit_day": "d",
+    "unit_hour": "h",
+    "unit_minute": "m",
+    "unit_second": "s",
     "all": "Tudo",
     "key": "Chave",
     "value": "Valor",
@@ -126,6 +126,8 @@
     "length": "Tamanho",
     "entries": "Entradas",
     "memory_usage": "Uso de Memória",
+    "text_align_left": "Alinhar à esquerda",
+    "text_align_center": "Centralizar",
     "view_as": "Visualizar Como",
     "decode_with": "Decodificar / Descompressão",
     "custom_decoder": "Novo Decodificador Personalizado",
@@ -168,7 +170,8 @@
     "log": "Log",
     "wechat_official": "Conta Oficial do WeChat",
     "follow_x": "Siga \uD835\uDD4F",
-    "github": "Github"
+    "github": "Github",
+    "logout": "Sair"
   },
   "dialogue": {
     "close_confirm": "Fechar esta conexão ({name})?",
@@ -249,6 +252,7 @@
         "enable": "Habilitar Túnel SSH",
         "title": "Túnel SSH",
         "login_type": "Tipo de Login",
+        "agent": "Agente SSH",
         "pkfile": "Arquivo de Chave Privada",
         "passphrase": "Frase de Senha",
         "addr_tip": "Endereço do Servidor SSH",
@@ -296,6 +300,8 @@
       "affected_key": "Chaves Afetadas",
       "show_affected_key": "Mostrar Chaves Afetadas",
       "confirm_delete_key": "Confirmar Exclusão de {num} Chave(s)",
+      "direct_delete": "Excluir padrão correspondente diretamente",
+      "confirm_delete": "Confirmar exclusão",
       "async_delete": "Execução Assíncrona",
       "async_delete_title": "Não esperar pelo resultado da operação",
       "confirm_flush": "Eu sei o que estou fazendo!",
@@ -329,7 +335,8 @@
       "set_key_filter": "Definir Filtro de Chave",
       "filter_pattern": "Padrão",
       "filter_pattern_tip": "Filtre a lista atual inserindo diretamente, e escaneie o servidor pressionando 'Enter'.\n\n* corresponde a 0 ou mais caracteres, ex: 'chave*'\n? corresponde a um único caractere, ex: 'chave?'\n[] corresponde a um intervalo, ex: 'chave[1-3]'\n\\ escapa caracteres especiais",
-      "exact_match_tip": "Correspondência Exata"
+      "exact_match_tip": "Correspondência Exata",
+      "filter_type_not_support": "A filtragem por tipo não é suportada para Redis 5.x e versões anteriores"
     },
     "export": {
       "name": "Exportar Dados",
@@ -388,13 +395,21 @@
     "welcome": {
       "title": "Bem-vindo ao Tiny RDM!",
       "content": "Para fornecer uma melhor experiência ao usuário, o Tiny RDM coleta alguns dados anônimos para ajudar a otimizar o software e melhorar a experiência do usuário. Fique tranquilo, isso não envolve suas informações de privacidade pessoal.\n\nSe você tiver alguma preocupação, pode desativar esse recurso de coleta de dados a qualquer momento indo em Preferências. Se tiver alguma dúvida, sinta-se à vontade para entrar em contato com o desenvolvedor. Espero que o Tiny RDM possa se tornar um assistente útil para você!",
-      "accept": "Help Improve",
-      "reject": "Reject"
+      "accept": "Ajudar a Melhorar",
+      "reject": "Rejeitar"
     },
     "about": {
       "source": "Código Fonte",
       "website": "Site Oficial"
     }
+  },
+  "login": {
+    "username_placeholder": "Digite o usuário",
+    "password_placeholder": "Digite a senha",
+    "submit": "Entrar",
+    "too_many_attempts": "Muitas tentativas, tente novamente mais tarde",
+    "invalid_credentials": "Credenciais inválidas",
+    "network_error": "Erro de rede"
   },
   "menu": {
     "minimise": "Minimizar",

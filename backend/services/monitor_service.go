@@ -5,13 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/redis/go-redis/v9"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"os"
 	"strconv"
 	"sync"
 	"time"
 	"tinyrdm/backend/types"
+
+	"github.com/redis/go-redis/v9"
 )
 
 type monitorItem struct {
@@ -89,7 +89,7 @@ func (c *monitorService) StartMonitor(server string) (resp types.JSResp) {
 	item.cmd = item.client.Monitor(c.ctx, item.ch)
 	item.cmd.Start()
 
-	go c.processMonitor(&item.mutex, item.ch, item.closeCh, item.eventName)
+	go c.processMonitor(&item.mutex, item.ch, item.closeCh, item.cmd, item.eventName)
 	resp.Success = true
 	resp.Data = struct {
 		EventName string `json:"eventName"`
@@ -99,9 +99,11 @@ func (c *monitorService) StartMonitor(server string) (resp types.JSResp) {
 	return
 }
 
-func (c *monitorService) processMonitor(mutex *sync.Mutex, ch <-chan string, closeCh <-chan struct{}, eventName string) {
-	lastEmitTime := time.Now().Add(-1 * time.Minute)
+func (c *monitorService) processMonitor(mutex *sync.Mutex, ch <-chan string, closeCh <-chan struct{}, cmd *redis.MonitorCmd, eventName string) {
 	cache := make([]string, 0, 1000)
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case data := <-ch:
@@ -110,16 +112,26 @@ func (c *monitorService) processMonitor(mutex *sync.Mutex, ch <-chan string, clo
 					mutex.Lock()
 					defer mutex.Unlock()
 					cache = append(cache, data)
-					if time.Now().Sub(lastEmitTime) > 1*time.Second || len(cache) > 300 {
-						runtime.EventsEmit(c.ctx, eventName, cache)
+					if len(cache) > 300 {
+						EventsEmit(c.ctx, eventName, cache)
 						cache = cache[:0:cap(cache)]
-						lastEmitTime = time.Now()
 					}
 				}()
 			}
 
+		case <-ticker.C:
+			func() {
+				mutex.Lock()
+				defer mutex.Unlock()
+				if len(cache) > 0 {
+					EventsEmit(c.ctx, eventName, cache)
+					cache = cache[:0:cap(cache)]
+				}
+			}()
+
 		case <-closeCh:
 			// monitor stopped
+			cmd.Stop()
 			return
 		}
 	}
@@ -136,8 +148,8 @@ func (c *monitorService) StopMonitor(server string) (resp types.JSResp) {
 		return
 	}
 
-	item.cmd.Stop()
 	//close(item.ch)
+	item.client.Close()
 	close(item.closeCh)
 	delete(c.items, server)
 	resp.Success = true
@@ -156,10 +168,10 @@ func (c *monitorService) StopAll() {
 }
 
 func (c *monitorService) ExportLog(logs []string) (resp types.JSResp) {
-	filepath, err := runtime.SaveFileDialog(c.ctx, runtime.SaveDialogOptions{
+	filepath, err := SaveFileDialog(c.ctx, SaveDialogOptions{
 		ShowHiddenFiles: false,
 		DefaultFilename: fmt.Sprintf("monitor_log_%s.txt", time.Now().Format("20060102150405")),
-		Filters: []runtime.FileFilter{
+		Filters: []FileFilter{
 			{Pattern: "*.txt"},
 		},
 	})

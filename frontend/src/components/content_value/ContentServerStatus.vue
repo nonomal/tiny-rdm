@@ -80,9 +80,11 @@ const refreshInfo = async (force) => {
     }
     if (!isEmpty(props.server) && browserStore.isConnected(props.server)) {
         try {
-            const info = await browserStore.getServerInfo(props.server)
-            serverInfo.value = info
-            _updateChart(info)
+            const info = await browserStore.getServerInfo(props.server, true)
+            if (!isEmpty(info)) {
+                serverInfo.value = info
+                _updateChart(info)
+            }
         } finally {
             pageState.loading = false
             pageState.autoLoading = false
@@ -92,7 +94,7 @@ const refreshInfo = async (force) => {
 
 const _updateChart = (info) => {
     let timeLabels = toRaw(cmdRate.value.labels)
-    timeLabels = timeLabels.concat(dayjs().format('hh:mm:ss'))
+    timeLabels = timeLabels.concat(dayjs().format('HH:mm:ss'))
     timeLabels = slice(timeLabels, Math.max(0, timeLabels.length - statusHistory))
 
     // commands per seconds
@@ -144,7 +146,7 @@ const _updateChart = (info) => {
 const _mockChart = () => {
     const timeLabels = []
     for (let i = 0; i < 5; i++) {
-        timeLabels.push(dayjs().add(5, 'seconds').format('hh:mm:ss'))
+        timeLabels.push(dayjs().add(5, 'seconds').format('HH:mm:ss'))
     }
 
     // commands per seconds
@@ -246,6 +248,10 @@ onMounted(() => {
 
 onUnmounted(() => {
     stopAutoRefresh()
+})
+
+const valkeyVersion = computed(() => {
+    return get(serverInfo.value, 'Server.valkey_version', '')
 })
 
 const redisVersion = computed(() => {
@@ -574,7 +580,7 @@ const clientTableColumns = computed(() => {
                 {
                     key: 'idle',
                     title: () => i18n.t('status.client.idle'),
-                    sorter: (row1, row2) => row1.age - row2.age,
+                    sorter: (row1, row2) => row1.idle - row2.idle,
                     align: 'center',
                     titleAlign: 'center',
                     render: ({ idle }, index) => {
@@ -593,7 +599,13 @@ const clientTableColumns = computed(() => {
             <template #header>
                 <n-space :wrap-item="false" align="center" inline size="small">
                     {{ props.server }}
-                    <n-tooltip v-if="redisVersion">
+                    <n-tooltip v-if="valkeyVersion">
+                        Valkey Version
+                        <template #trigger>
+                            <n-tag size="small" type="primary">v{{ valkeyVersion }}</n-tag>
+                        </template>
+                    </n-tooltip>
+                    <n-tooltip v-else-if="redisVersion">
                         Redis Version
                         <template #trigger>
                             <n-tag size="small" type="primary">v{{ redisVersion }}</n-tag>
@@ -774,7 +786,7 @@ const clientTableColumns = computed(() => {
 </template>
 
 <style lang="scss" scoped>
-@import '@/styles/content';
+@use '@/styles/content';
 
 .line-chart {
     display: flex;

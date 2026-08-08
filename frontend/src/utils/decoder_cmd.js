@@ -9,11 +9,10 @@ import { includes, isEmpty, toUpper, trim } from 'lodash'
  */
 export const joinCommand = (path, args = [], emptyContent = '-') => {
     let cmd = ''
-    path = trim(path)
-    if (!isEmpty(path)) {
+    if (!isEmpty(trim(path))) {
         let containValuePlaceholder = false
         cmd = includes(path, ' ') ? `"${path}"` : path
-        for (let part of args) {
+        for (let part of args || []) {
             part = trim(part)
             if (isEmpty(part)) {
                 continue

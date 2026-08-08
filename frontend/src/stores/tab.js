@@ -1,6 +1,9 @@
-import { assign, find, findIndex, get, indexOf, isEmpty, pullAt, remove, set, size } from 'lodash'
+import { assign, find, findIndex, get, includes, indexOf, isEmpty, pullAt, remove, set, size } from 'lodash'
 import { defineStore } from 'pinia'
 import { TabItem } from '@/objects/tabItem.js'
+import useBrowserStore from 'stores/browser.js'
+import { i18nGlobal } from '@/utils/i18n.js'
+import { BrowserTabType } from '@/consts/browser_tab_type.js'
 
 const useTabStore = defineStore('tab', {
     /**
@@ -133,6 +136,17 @@ const useTabStore = defineStore('tab', {
         },
 
         /**
+         *
+         * @param {string} tabName
+         */
+        closeTab(tabName) {
+            $dialog.warning(i18nGlobal.t('dialogue.close_confirm', { name: tabName }), () => {
+                const browserStore = useBrowserStore()
+                browserStore.closeConnection(tabName)
+            })
+        },
+
+        /**
          * update or insert a new tab if not exists with the same name
          * @param {string} subTab
          * @param {string} server
@@ -147,6 +161,7 @@ const useTabStore = defineStore('tab', {
          * @param {boolean} [clearValue]
          * @param {string} format
          * @param {string} decode
+         * @param {boolean} forceSwitch
          * @param {*} [value]
          */
         upsertTab({
@@ -163,9 +178,11 @@ const useTabStore = defineStore('tab', {
             clearValue,
             format = '',
             decode = '',
+            forceSwitch = false,
         }) {
             let tabIndex = findIndex(this.tabList, { name: server })
             if (tabIndex === -1) {
+                subTab = subTab || BrowserTabType.Status
                 const tabItem = new TabItem({
                     name: server,
                     title: server,
@@ -185,10 +202,11 @@ const useTabStore = defineStore('tab', {
                 })
                 this.tabList.push(tabItem)
                 tabIndex = this.tabList.length - 1
+                this._setActivatedIndex(tabIndex, true, subTab)
             } else {
                 const tab = this.tabList[tabIndex]
                 tab.blank = false
-                tab.subTab = subTab
+                tab.subTab = subTab || tab.subTab
                 // tab.title = db !== undefined ? `${server}/db${db}` : `${server}`
                 tab.title = server
                 tab.server = server
@@ -205,8 +223,10 @@ const useTabStore = defineStore('tab', {
                 if (clearValue === true) {
                     tab.value = undefined
                 }
+                if (forceSwitch === true) {
+                    this._setActivatedIndex(tabIndex, true, subTab)
+                }
             }
-            this._setActivatedIndex(tabIndex, true, subTab)
         },
 
         /**
@@ -276,9 +296,25 @@ const useTabStore = defineStore('tab', {
                 case 'list': // {v:string, dv:[string]}[]
                     tab.value = tab.value || []
                     if (prepend === true) {
-                        tab.value = [...entries, ...tab.value]
+                        const originList = tab.value
+                        const list = []
+                        let starIndex = 0
+                        for (const entry of entries) {
+                            entry.index = starIndex++
+                            list.push(entry)
+                        }
+                        for (const entry of originList) {
+                            entry.index = starIndex++
+                            list.push(entry)
+                        }
+                        tab.value = list
                     } else {
-                        tab.value.push(...entries)
+                        const list = tab.value
+                        let starIndex = list.length
+                        for (const entry of entries) {
+                            entry.index = starIndex++
+                            list.push(entry)
+                        }
                     }
                     tab.length += size(entries)
                     break
@@ -377,6 +413,7 @@ const useTabStore = defineStore('tab', {
                     for (const entry of entries) {
                         if (size(tab.value) > entry.index) {
                             tab.value[entry.index] = {
+                                index: entry.index,
                                 v: entry.v,
                                 dv: entry.dv,
                             }
@@ -658,12 +695,15 @@ const useTabStore = defineStore('tab', {
         /**
          * set expanded keys for server
          * @param {string} server
-         * @param {string[]} keys
+         * @param {string|string[]} keys
          */
         setExpandedKeys(server, keys = []) {
             /** @type TabItem**/
             let tab = find(this.tabList, { name: server })
             if (tab != null) {
+                if (typeof keys === 'string') {
+                    keys = [keys]
+                }
                 if (isEmpty(keys)) {
                     tab.expandedKeys = []
                 } else {
@@ -675,13 +715,20 @@ const useTabStore = defineStore('tab', {
         /**
          *
          * @param {string} server
-         * @param {string} key
+         * @param {string|string[]} keys
          */
-        addExpandedKey(server, key) {
+        addExpandedKey(server, keys) {
             /** @type TabItem**/
             let tab = find(this.tabList, { name: server })
             if (tab != null) {
-                tab.expandedKeys.push(key)
+                if (typeof keys === 'string') {
+                    keys = [keys]
+                }
+                for (const k of keys) {
+                    if (!includes(tab.expandedKeys, k)) {
+                        tab.expandedKeys.push(k)
+                    }
+                }
             }
         },
 
@@ -770,9 +817,20 @@ const useTabStore = defineStore('tab', {
         },
 
         /**
-         * set activated key
+         * get activated key
+         * @param {string} server
+         * @return {string|null}
+         */
+        getActivatedKey(server) {
+            let tab = find(this.tabList, { name: server })
+            return get(tab, 'activatedKey')
+        },
+
+        /**
+         * set activated key and return current activatedKey
          * @param {string} server
          * @param {string} key
+         * @return {boolean}
          */
         setActivatedKey(server, key) {
             /** @type TabItem**/

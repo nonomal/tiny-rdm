@@ -126,6 +126,8 @@
     "length": "Longueur",
     "entries": "Entrées",
     "memory_usage": "Utilisation de la mémoire",
+    "text_align_left": "Aligner à gauche",
+    "text_align_center": "Centrer",
     "view_as": "Voir comme",
     "decode_with": "Décoder / Décompresser",
     "custom_decoder": "Nouveau décodeur personnalisé",
@@ -168,7 +170,8 @@
     "log": "Journal",
     "wechat_official": "Compte officiel WeChat",
     "follow_x": "Suivre \uD835\uDD4F",
-    "github": "Github"
+    "github": "Github",
+    "logout": "Se déconnecter"
   },
   "dialogue": {
     "close_confirm": "Fermer cette connexion ({name}) ?",
@@ -249,6 +252,7 @@
         "enable": "Activer le tunnel SSH",
         "title": "Tunnel SSH",
         "login_type": "Type de connexion",
+        "agent": "Agent SSH",
         "pkfile": "Fichier de clé privée",
         "passphrase": "Phrase secrète",
         "addr_tip": "Adresse SSH",
@@ -296,6 +300,8 @@
       "affected_key": "Clés affectées",
       "show_affected_key": "Afficher les clés affectées",
       "confirm_delete_key": "Confirmer la suppression de {num} clé(s)",
+      "direct_delete": "Supprimer le modèle correspondant directement",
+      "confirm_delete": "Confirmer la suppression",
       "async_delete": "Exécution asynchrone",
       "async_delete_title": "Ne pas attendre le résultat",
       "confirm_flush": "Je sais ce que je fais !",
@@ -329,7 +335,8 @@
       "set_key_filter": "Définir le filtre de clé",
       "filter_pattern": "Modèle",
       "filter_pattern_tip": "Filtrez la liste actuelle en saisissant directement, et scannez le serveur en appuyant sur 'Entrée'.\n\n* correspond à 0 ou plusieurs caractères, ex : 'key*'\n? correspond à un seul caractère, ex : 'key?'\n[] correspond à une plage, ex : 'key[1-3]' échappe les caractères spéciaux",
-      "exact_match_tip": "Correspondance exacte"
+      "exact_match_tip": "Correspondance exacte",
+      "filter_type_not_support": "Le filtrage par type n’est pas pris en charge pour Redis 5.x et les versions antérieures"
     },
     "export": {
       "name": "Exporter les données",
@@ -395,6 +402,14 @@
       "source": "Code source",
       "website": "Site officiel"
     }
+  },
+  "login": {
+    "username_placeholder": "Entrez le nom d'utilisateur",
+    "password_placeholder": "Entrez le mot de passe",
+    "submit": "Se connecter",
+    "too_many_attempts": "Trop de tentatives, réessayez plus tard",
+    "invalid_credentials": "Identifiants invalides",
+    "network_error": "Erreur réseau"
   },
   "menu": {
     "minimise": "Minimiser",

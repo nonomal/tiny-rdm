@@ -1,10 +1,10 @@
 <script setup>
-import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, h, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { debounce, get, isEmpty, size, uniq } from 'lodash'
 import { useI18n } from 'vue-i18n'
 import { useThemeVars } from 'naive-ui'
 import useBrowserStore from 'stores/browser.js'
-import { EventsOff, EventsOn } from 'wailsjs/runtime/runtime.js'
+import { ClipboardSetText, EventsOff, EventsOn } from 'wailsjs/runtime/runtime.js'
 import dayjs from 'dayjs'
 import Publish from '@/components/icons/Publish.vue'
 import Subscribe from '@/components/icons/Subscribe.vue'
@@ -14,6 +14,7 @@ import { Publish as PublishSend, StartSubscribe, StopSubscribe } from 'wailsjs/g
 import Checked from '@/components/icons/Checked.vue'
 import Bottom from '@/components/icons/Bottom.vue'
 import IconButton from '@/components/common/IconButton.vue'
+import EditableTableColumn from '@/components/common/EditableTableColumn.vue'
 
 const themeVars = useThemeVars()
 
@@ -47,11 +48,11 @@ const columns = computed(() => [
     {
         title: () => i18n.t('pubsub.time'),
         key: 'timestamp',
-        width: 180,
+        width: 200,
         align: 'center',
         titleAlign: 'center',
         render: ({ timestamp }, index) => {
-            return dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss')
+            return dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss.SSS')
         },
     },
     {
@@ -95,6 +96,26 @@ const columns = computed(() => [
             : undefined,
         filter: (value, row) => {
             return value === '' || !!~row.cmd.indexOf(value.toString())
+        },
+    },
+    {
+        title: () => i18n.t('interface.action'),
+        key: 'action',
+        width: 60,
+        titleAlign: 'center',
+        align: 'center',
+        fixed: 'right',
+        render: (row, index) => {
+            return h(EditableTableColumn, {
+                editing: false,
+                readonly: true,
+                canRefresh: false,
+                canDelete: false,
+                onCopy: async () => {
+                    await ClipboardSetText(row.message)
+                    $message.success(i18n.t('interface.copy_succ'))
+                },
+            })
         },
     },
 ])
@@ -281,7 +302,7 @@ const onPublish = async () => {
 </template>
 
 <style lang="scss" scoped>
-@import '@/styles/content';
+@use '@/styles/content';
 
 .total-message {
     margin: 10px 0 0;

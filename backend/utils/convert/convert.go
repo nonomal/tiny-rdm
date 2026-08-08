@@ -20,10 +20,12 @@ var (
 	xmlConv     XmlConvert
 	base64Conv  Base64Convert
 	binaryConv  BinaryConvert
+	bitSetConv  BitSetConvert
 	hexConv     HexConvert
 	gzipConv    GZipConvert
 	deflateConv DeflateConvert
 	zstdConv    ZStdConvert
+	lz4Conv     LZ4Convert
 	brotliConv  BrotliConvert
 	msgpackConv MsgpackConvert
 	phpConv     = NewPhpConvert()
@@ -37,6 +39,7 @@ var BuildInFormatters = map[string]DataConvert{
 	types.FORMAT_XML:          xmlConv,
 	types.FORMAT_HEX:          hexConv,
 	types.FORMAT_BINARY:       binaryConv,
+	types.FORMAT_BITSET:       bitSetConv,
 }
 
 var BuildInDecoders = map[string]DataConvert{
@@ -44,6 +47,7 @@ var BuildInDecoders = map[string]DataConvert{
 	types.DECODE_GZIP:    gzipConv,
 	types.DECODE_DEFLATE: deflateConv,
 	types.DECODE_ZSTD:    zstdConv,
+	types.DECODE_LZ4:     lz4Conv,
 	types.DECODE_BROTLI:  brotliConv,
 	types.DECODE_MSGPACK: msgpackConv,
 	types.DECODE_PHP:     phpConv,
@@ -135,6 +139,11 @@ func autoDecode(str string, customDecoder []CmdConvert) (value, resultDecode str
 
 			if value, ok = zstdConv.Decode(str); ok {
 				resultDecode = types.DECODE_ZSTD
+				return
+			}
+
+			if value, ok = lz4Conv.Decode(str); ok {
+				resultDecode = types.DECODE_LZ4
 				return
 			}
 

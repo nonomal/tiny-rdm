@@ -3,12 +3,12 @@ package services
 import (
 	"context"
 	"fmt"
-	"github.com/redis/go-redis/v9"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"strconv"
 	"sync"
 	"time"
 	"tinyrdm/backend/types"
+
+	"github.com/redis/go-redis/v9"
 )
 
 type pubsubItem struct {
@@ -120,8 +120,10 @@ func (p *pubsubService) StartSubscribe(server string) (resp types.JSResp) {
 }
 
 func (p *pubsubService) processSubscribe(mutex *sync.Mutex, ch <-chan *redis.Message, closeCh <-chan struct{}, eventName string) {
-	lastEmitTime := time.Now().Add(-1 * time.Minute)
 	cache := make([]subMessage, 0, 1000)
+	ticker := time.NewTicker(300 * time.Millisecond)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case data := <-ch:
@@ -134,10 +136,19 @@ func (p *pubsubService) processSubscribe(mutex *sync.Mutex, ch <-chan *redis.Mes
 					Channel:   data.Channel,
 					Message:   data.Payload,
 				})
-				if time.Now().Sub(lastEmitTime) > 300*time.Millisecond || len(cache) > 300 {
-					runtime.EventsEmit(p.ctx, eventName, cache)
+				if len(cache) > 300 {
+					EventsEmit(p.ctx, eventName, cache)
 					cache = cache[:0:cap(cache)]
-					lastEmitTime = time.Now()
+				}
+			}()
+
+		case <-ticker.C:
+			func() {
+				mutex.Lock()
+				defer mutex.Unlock()
+				if len(cache) > 0 {
+					EventsEmit(p.ctx, eventName, cache)
+					cache = cache[:0:cap(cache)]
 				}
 			}()
 

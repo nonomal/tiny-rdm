@@ -27,6 +27,7 @@ import { ConnectionType } from '@/consts/connection_type.js'
 import Import from '@/components/icons/Import.vue'
 import Checkbox from '@/components/icons/Checkbox.vue'
 import Timer from '@/components/icons/Timer.vue'
+import { toVersionArray } from '@/utils/version.js'
 
 const props = defineProps({
     server: String,
@@ -76,6 +77,12 @@ const dbSelectOptions = computed(() => {
             label: label,
         }
     })
+})
+
+const showTypeFilter = computed(() => {
+    const version = browserStore.getServerVersion(props.server)
+    const verArr = toVersionArray(version)
+    return verArr[0] > 5
 })
 
 const moreOptions = [
@@ -301,7 +308,11 @@ watch(
                 @filter-changed="onFilterInput"
                 @match-changed="onMatchInput">
                 <template #prepend>
-                    <redis-type-selector v-model:value="filterForm.type" @update:value="onSelectFilterType" />
+                    <redis-type-selector
+                        v-model:value="filterForm.type"
+                        :disabled="!showTypeFilter"
+                        :disable-tip="$t('dialogue.filter.filter_type_not_support')"
+                        @update:value="onSelectFilterType" />
                 </template>
             </content-search-input>
             <n-button-group>
@@ -447,7 +458,7 @@ watch(
 </template>
 
 <style lang="scss" scoped>
-@import '@/styles/style';
+@use '@/styles/style' as style;
 
 :deep(.toggle-btn) {
     border-style: solid;
@@ -472,7 +483,7 @@ watch(
 }
 
 .nav-pane-bottom {
-    @include top-shadow(0.1);
+    @include style.top-shadow(0.1);
     color: v-bind('themeVars.iconColor');
     border-top: v-bind('themeVars.borderColor') 1px solid;
 }

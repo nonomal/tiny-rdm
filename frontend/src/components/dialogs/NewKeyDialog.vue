@@ -2,7 +2,7 @@
 import { computed, h, nextTick, reactive, ref, watchEffect } from 'vue'
 import { types, typesColor } from '@/consts/support_redis_type.js'
 import useDialog from 'stores/dialog'
-import { endsWith, get, isEmpty, keys, map, trim } from 'lodash'
+import { endsWith, get, isEmpty, keys, map } from 'lodash'
 import NewStringValue from '@/components/new_value/NewStringValue.vue'
 import NewHashValue from '@/components/new_value/NewHashValue.vue'
 import NewListValue from '@/components/new_value/NewListValue.vue'
@@ -154,10 +154,14 @@ const onAdd = async () => {
             value = defaultValue[type]
         }
         // await browserStore.reloadKey({server, db, key: trim(key)})
-        const { success, msg, nodeKey } = await browserStore.setKey({
+        const {
+            success,
+            msg,
+            nodeKey = '',
+        } = await browserStore.setKey({
             server,
             db,
-            key: trim(key),
+            key,
             keyType: type,
             value,
             ttl,
@@ -165,12 +169,15 @@ const onAdd = async () => {
         if (success) {
             // select current key
             await nextTick()
-            tabStore.setSelectedKeys(server, nodeKey)
-            browserStore.reloadKey({ server, db, key })
+            const selectedDB = browserStore.getSelectedDB(server)
+            if (selectedDB === db) {
+                tabStore.setSelectedKeys(server, nodeKey)
+                browserStore.reloadKey({ server, db, key })
+            }
+            dialogStore.closeNewKeyDialog()
         } else if (!isEmpty(msg)) {
             $message.error(msg)
         }
-        dialogStore.closeNewKeyDialog()
     } catch (e) {
         return false
     }

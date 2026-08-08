@@ -5,14 +5,17 @@ import Edit from '@/components/icons/Edit.vue'
 import Close from '@/components/icons/Close.vue'
 import Save from '@/components/icons/Save.vue'
 import Copy from '@/components/icons/Copy.vue'
+import Refresh from '@/components/icons/Refresh.vue'
+import { truncate } from 'lodash'
 
 const props = defineProps({
     bindKey: String,
     editing: Boolean,
     readonly: Boolean,
+    canRefresh: Boolean,
 })
 
-const emit = defineEmits(['edit', 'delete', 'copy', 'save', 'cancel'])
+const emit = defineEmits(['edit', 'delete', 'copy', 'refresh', 'save', 'cancel'])
 </script>
 
 <template>
@@ -22,15 +25,17 @@ const emit = defineEmits(['edit', 'delete', 'copy', 'save', 'cancel'])
     </div>
     <div v-else class="flex-box-h edit-column-func">
         <icon-button :icon="Copy" :title="$t('interface.copy_value')" @click="emit('copy')" />
+        <icon-button v-if="props.canRefresh" :icon="Refresh" :title="$t('interface.reload')" @click="emit('refresh')" />
         <icon-button v-if="!props.readonly" :icon="Edit" :title="$t('interface.edit_row')" @click="emit('edit')" />
         <n-popconfirm
+            v-if="props.bindKey"
             :negative-text="$t('common.cancel')"
             :positive-text="$t('common.confirm')"
             @positive-click="emit('delete')">
             <template #trigger>
                 <icon-button :icon="Delete" :title="$t('interface.delete_row')" />
             </template>
-            {{ $t('dialogue.remove_tip', { name: props.bindKey }) }}
+            {{ $t('dialogue.remove_tip', { name: truncate(props.bindKey, { length: 80 }) }) }}
         </n-popconfirm>
     </div>
 </template>

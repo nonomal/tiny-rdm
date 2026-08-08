@@ -24,6 +24,7 @@ async function setupApp() {
     setupMonaco()
     setupChart()
     const prefStore = usePreferencesStore()
+    await prefStore.loadAppVersion()
     await prefStore.loadPreferences()
     await setupDiscreteApi()
     app.config.errorHandler = (err, instance, info) => {

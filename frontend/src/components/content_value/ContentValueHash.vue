@@ -1,12 +1,12 @@
 <script setup>
-import { computed, h, nextTick, reactive, ref } from 'vue'
+import { computed, h, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AddLink from '@/components/icons/AddLink.vue'
 import { NButton, NIcon, useThemeVars } from 'naive-ui'
 import { types, types as redisTypes } from '@/consts/support_redis_type.js'
 import EditableTableColumn from '@/components/common/EditableTableColumn.vue'
 import useDialogStore from 'stores/dialog.js'
-import { isEmpty, size } from 'lodash'
+import { isEmpty, size, truncate } from 'lodash'
 import { decodeTypes, formatTypes } from '@/consts/value_view_type.js'
 import useBrowserStore from 'stores/browser.js'
 import LoadList from '@/components/icons/LoadList.vue'
@@ -15,10 +15,14 @@ import IconButton from '@/components/common/IconButton.vue'
 import ContentEntryEditor from '@/components/content_value/ContentEntryEditor.vue'
 import Edit from '@/components/icons/Edit.vue'
 import FormatSelector from '@/components/content_value/FormatSelector.vue'
-import { decodeRedisKey } from '@/utils/key_convert.js'
+import { decodeRedisKey, nativeRedisKey } from '@/utils/key_convert.js'
 import ContentSearchInput from '@/components/content_value/ContentSearchInput.vue'
-import { ClipboardSetText } from 'wailsjs/runtime/runtime.js'
 import { formatBytes } from '@/utils/byte_convert.js'
+import { ClipboardSetText } from 'wailsjs/runtime/runtime.js'
+import SwitchButton from '@/components/common/SwitchButton.vue'
+import AlignLeft from '@/components/icons/AlignLeft.vue'
+import AlignCenter from '@/components/icons/AlignCenter.vue'
+import { TextAlignType } from '@/consts/text_align_type.js'
 
 const i18n = useI18n()
 const themeVars = useThemeVars()
@@ -36,7 +40,7 @@ const props = defineProps({
         default: -1,
     },
     value: {
-        type: Array,
+        type: [String, Array],
         default: () => [],
     },
     size: Number,
@@ -45,9 +49,10 @@ const props = defineProps({
     decode: String,
     end: Boolean,
     loading: Boolean,
+    textAlign: Number,
 })
 
-const emit = defineEmits(['loadmore', 'loadall', 'reload', 'match'])
+const emit = defineEmits(['loadmore', 'loadall', 'reload', 'match', 'update:textAlign'])
 
 /**
  *
@@ -75,12 +80,23 @@ const fullEdit = ref(false)
 
 const tableRef = ref(null)
 const fieldFilterOption = ref(null)
+const findValueIndexByKey = (fieldKey) => {
+    if (!(props.value instanceof Array)) {
+        return -1
+    }
+    return props.value.findIndex((item) => item.k === fieldKey)
+}
 const fieldColumn = computed(() => ({
     key: 'key',
     title: () => i18n.t('common.field'),
-    align: 'center',
+    align: props.textAlign !== TextAlignType.Left ? 'center' : 'left',
     titleAlign: 'center',
     resizable: true,
+    sorter: (row1, row2) =>
+        `${row1?.k || ''}`.localeCompare(`${row2?.k || ''}`, undefined, {
+            numeric: true,
+            sensitivity: 'base',
+        }),
     ellipsis: {
         tooltip: {
             style: {
@@ -89,14 +105,20 @@ const fieldColumn = computed(() => ({
             },
             scrollable: true,
         },
-        lineClamp: 10,
+        lineClamp: 1,
     },
     filterOptionValue: fieldFilterOption.value,
-    className: inEdit.value ? 'clickable' : '',
+    className: inEdit.value ? 'clickable wordline' : 'wordline',
     filter: (value, row) => {
+        if (isEmpty(value)) {
+            return true
+        }
         return !!~row.k.indexOf(value.toString())
     },
     render: (row) => {
+        if (row.rm === true) {
+            return h('s', {}, decodeRedisKey(row.k))
+        }
         return decodeRedisKey(row.k)
     },
 }))
@@ -108,7 +130,7 @@ const isCode = computed(() => {
 const valueColumn = computed(() => ({
     key: 'value',
     title: () => i18n.t('common.value'),
-    align: isCode.value ? 'left' : 'center',
+    align: isCode.value ? 'left' : props.textAlign !== TextAlignType.Left ? 'center' : 'left',
     titleAlign: 'center',
     resizable: true,
     ellipsis: isCode.value
@@ -121,6 +143,7 @@ const valueColumn = computed(() => ({
                   },
                   scrollable: true,
               },
+              lineClamp: 1,
           },
     // filterOptionValue: valueFilterOption.value,
     className: inEdit.value ? 'clickable' : '',
@@ -132,9 +155,16 @@ const valueColumn = computed(() => ({
     // },
     render: (row) => {
         if (isCode.value) {
-            return h('pre', {}, row.dv || row.v)
+            let val = row.dv || nativeRedisKey(row.v)
+            return h('pre', { class: 'pre-wrap' }, val)
+        } else {
+            let val = row.dv || nativeRedisKey(row.v, 500)
+            val = truncate(val, { length: 500 })
+            if (row.rm === true) {
+                return h('s', {}, val)
+            }
+            return val
         }
-        return row.dv || row.v
     },
 }))
 
@@ -148,7 +178,8 @@ const startEdit = async (no, key, value) => {
 
 const saveEdit = async (field, value, decode, format) => {
     try {
-        const row = props.value[currentEditRow.no - 1]
+        const rowIndex = findValueIndexByKey(currentEditRow.key)
+        const row = rowIndex >= 0 ? props.value[rowIndex] : null
         if (row == null) {
             throw new Error('row not exists')
         }
@@ -168,9 +199,10 @@ const saveEdit = async (field, value, decode, format) => {
             format,
             retDecode: props.decode,
             retFormat: props.format,
-            index: [currentEditRow.no - 1],
+            index: rowIndex >= 0 ? [rowIndex] : undefined,
         })
         if (success) {
+            currentEditRow.key = field
             currentEditRow.value = value
             $message.success(i18n.t('interface.save_value_succ'))
         } else {
@@ -185,9 +217,9 @@ const resetEdit = () => {
     currentEditRow.no = 0
     currentEditRow.key = ''
     currentEditRow.value = null
-    if (currentEditRow.format !== props.format || currentEditRow.decode !== props.decode) {
-        nextTick(() => onFormatChanged(currentEditRow.decode, currentEditRow.format))
-    }
+    // if (currentEditRow.format !== props.format || currentEditRow.decode !== props.decode) {
+    //     nextTick(() => onFormatChanged(currentEditRow.decode, currentEditRow.format))
+    // }
     // currentEditRow.format = formatTypes.RAW
     // currentEditRow.decode = decodeTypes.NONE
 }
@@ -203,15 +235,34 @@ const actionColumn = {
         return h(EditableTableColumn, {
             editing: false,
             bindKey: row.k,
-            onCopy: async () => {
-                try {
-                    const succ = await ClipboardSetText(row.v)
-                    if (succ) {
-                        $message.success(i18n.t('interface.copy_succ'))
+            canRefresh: true,
+            onRefresh: async () => {
+                const { updated, success, msg } = await browserStore.getHashField({
+                    server: props.name,
+                    db: props.db,
+                    key: keyName.value,
+                    field: row.k,
+                    decode: props.decode,
+                    format: props.format,
+                })
+                if (success) {
+                    const rowIndex = findValueIndexByKey(row.k)
+                    if (rowIndex >= 0) {
+                        delete props.value[rowIndex]['rm']
                     }
-                } catch (e) {
-                    $message.error(e.message)
+                    $message.success(i18n.t('dialogue.reload_succ'))
+                } else {
+                    // update fail, the key may have been deleted
+                    $message.error(msg)
+                    const rowIndex = findValueIndexByKey(row.k)
+                    if (rowIndex >= 0) {
+                        props.value[rowIndex]['rm'] = true
+                    }
                 }
+            },
+            onCopy: async () => {
+                await ClipboardSetText(row.v)
+                $message.success(i18n.t('interface.copy_succ'))
             },
             onEdit: () => startEdit(index + 1, row.k, row.v),
             onDelete: async () => {
@@ -224,7 +275,10 @@ const actionColumn = {
                         reload: false,
                     })
                     if (success) {
-                        props.value.splice(index, 1)
+                        const rowIndex = findValueIndexByKey(row.k)
+                        if (rowIndex >= 0) {
+                            props.value.splice(rowIndex, 1)
+                        }
                         $message.success(i18n.t('dialogue.delete.success', { key: row.k }))
                     } else {
                         $message.error(msg)
@@ -342,6 +396,15 @@ defineExpose({
                     @match-changed="onMatchInput" />
             </div>
             <div class="flex-item-expand"></div>
+            <switch-button
+                :icons="[AlignCenter, AlignLeft]"
+                :stroke-width="3.5"
+                :t-tooltips="['interface.text_align_center', 'interface.text_align_left']"
+                :value="props.textAlign"
+                size="medium"
+                unselect-stroke-width="3"
+                @update:value="(val) => emit('update:textAlign', val)" />
+            <n-divider vertical />
             <n-button-group>
                 <icon-button
                     :disabled="props.end || props.loading"

@@ -1,12 +1,13 @@
 package types
 
 type ListEntryItem struct {
+	Index        int    `json:"index"`
 	Value        any    `json:"v"`
 	DisplayValue string `json:"dv,omitempty"`
 }
 
 type ListReplaceItem struct {
-	Index        int64  `json:"index"`
+	Index        int    `json:"index"`
 	Value        any    `json:"v,omitempty"`
 	DisplayValue string `json:"dv,omitempty"`
 }
@@ -32,7 +33,7 @@ type SetEntryItem struct {
 type ZSetEntryItem struct {
 	Score        float64 `json:"s"`
 	ScoreStr     string  `json:"ss,omitempty"`
-	Value        string  `json:"v"`
+	Value        any     `json:"v"`
 	DisplayValue string  `json:"dv,omitempty"`
 }
 

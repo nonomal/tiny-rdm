@@ -1,13 +1,15 @@
 package convutil
 
 import (
-	"github.com/vrischmann/userdir"
 	"os"
 	"path"
+	"tinyrdm/backend/consts"
+
+	"github.com/vrischmann/userdir"
 )
 
 func writeExecuteFile(content []byte, filename string) (string, error) {
-	filepath := path.Join(userdir.GetConfigHome(), "TinyRDM", "decoder", filename)
+	filepath := path.Join(userdir.GetConfigHome(), consts.APP_DATA_FOLDER, "decoder", filename)
 	_ = os.Mkdir(path.Dir(filepath), 0777)
 	err := os.WriteFile(filepath, content, 0777)
 	if err != nil {

@@ -1,4 +1,5 @@
 name: Release macOS App
+run-name: ${{ github.event.release.tag_name || github.event.inputs.tag }}
 
 on:
   release:
@@ -44,7 +45,7 @@ jobs:
           fi
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         with:
           go-version: stable
 
@@ -65,7 +66,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
-          node-version: 18
+          node-version: 22
 
       - name: Build frontend assets
         shell: bash
@@ -82,7 +83,7 @@ jobs:
         shell: bash
         run: |
           CGO_ENABLED=1 wails build -platform ${{ matrix.platform }} \
-          -ldflags "-X main.version=${{ github.event.release.tag_name }} -X main.gaMeasurementID=${{ secrets.GA_MEASUREMENT_ID }} -X main.gaSecretKey=${{ secrets.MAC_GA_SECRET }}"
+          -ldflags "-X main.version=${{ steps.normalise_version.outputs.version }} -X main.gaMeasurementID=${{ secrets.GA_MEASUREMENT_ID }} -X main.gaSecretKey=${{ secrets.MAC_GA_SECRET }}"
 
       #      - name: Notarise macOS app + create dmg
       #        shell: bash

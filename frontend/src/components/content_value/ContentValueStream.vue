@@ -13,8 +13,8 @@ import LoadList from '@/components/icons/LoadList.vue'
 import LoadAll from '@/components/icons/LoadAll.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import ContentSearchInput from '@/components/content_value/ContentSearchInput.vue'
-import { ClipboardSetText } from 'wailsjs/runtime/runtime.js'
 import { formatBytes } from '@/utils/byte_convert.js'
+import { ClipboardSetText } from 'wailsjs/runtime/runtime.js'
 
 const i18n = useI18n()
 const themeVars = useThemeVars()
@@ -81,6 +81,9 @@ const valueColumn = computed(() => ({
     filterOptionValue: valueFilterOption.value,
     filter: (value, row) => {
         const v = value.toString()
+        if (isEmpty(v)) {
+            return true
+        }
         if (row.dv) {
             return includes(row.dv, v)
         }
@@ -93,7 +96,7 @@ const valueColumn = computed(() => ({
     },
     // sorter: (row1, row2) => row1.value - row2.value,
     render: (row) => {
-        return h('pre', {}, row.dv)
+        return h('pre', { class: 'pre-wrap' }, row.dv)
     },
 }))
 const actionColumn = {
@@ -108,14 +111,8 @@ const actionColumn = {
             bindKey: row.id,
             readonly: true,
             onCopy: async () => {
-                try {
-                    const succ = await ClipboardSetText(JSON.stringify(row.v))
-                    if (succ) {
-                        $message.success(i18n.t('interface.copy_succ'))
-                    }
-                } catch (e) {
-                    $message.error(e.message)
-                }
+                await ClipboardSetText(JSON.stringify(row.v))
+                $message.success(i18n.t('interface.copy_succ'))
             },
             onDelete: async () => {
                 try {

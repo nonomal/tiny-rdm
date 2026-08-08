@@ -126,6 +126,8 @@
     "length": "長さ",
     "entries": "エントリ",
     "memory_usage": "メモリ使用量",
+    "text_align_left": "左揃え",
+    "text_align_center": "中央揃え",
     "view_as": "表示形式",
     "decode_with": "デコード/解凍",
     "custom_decoder": "新しいカスタムデコーダー",
@@ -159,7 +161,7 @@
       "cli": "コンソール",
       "slow_log": "スロー ログ",
       "cmd_monitor": "コマンドのモニタリング",
-      "pub_message": "パブ/サブ"
+      "pub_message": "パブリッシュ/サブスクライブ"
     }
   },
   "ribbon": {
@@ -168,7 +170,8 @@
     "log": "ログ",
     "wechat_official": "Wechat 公式アカウント",
     "follow_x": "私の \uD835\uDD4F をフォローする",
-    "github": "Github"
+    "github": "Github",
+    "logout": "ログアウト"
   },
   "dialogue": {
     "close_confirm": "この接続（{name}）を閉じますか？",
@@ -249,6 +252,7 @@
         "enable": "SSHトンネルを有効化",
         "title": "SSHトンネル",
         "login_type": "ログイン方式",
+        "agent": "SSHエージェント",
         "pkfile": "秘密鍵ファイル",
         "passphrase": "パスフレーズ",
         "addr_tip": "SSHサーバーのアドレス",
@@ -296,6 +300,8 @@
       "affected_key": "影響を受けるキー",
       "show_affected_key": "影響を受けるキーを表示",
       "confirm_delete_key": "{num}個のキーを削除することを確認",
+      "direct_delete": "一致するパターンを直接削除",
+      "confirm_delete": "削除を確認",
       "async_delete": "非同期実行",
       "async_delete_title": "結果を待たない",
       "confirm_flush": "自分が実行しようとしている操作を理解しています！",
@@ -329,7 +335,8 @@
       "set_key_filter": "キーフィルターを設定",
       "filter_pattern": "パターン",
       "filter_pattern_tip": "直接入力して現在のリストをフィルタリングし、Enterキーを押すとサーバーをスキャンできます。\n\n*：0文字以上にマッチ。例：\"key*\"は\"key\"で始まるすべてのキーにマッチ\n?：1文字にマッチ。例：\"key?\"は\"key1\"、\"key2\"にマッチ\n[ ]：指定範囲の1文字にマッチ。例：\"key[1-3]\"は\"key1\"、\"key2\"、\"key3\"にマッチ\n\\：エスケープ文字。*、?、[、]をリテラルとして解釈したい場合は\"\\ \"をつける",
-      "exact_match_tip": "完全一致"
+      "exact_match_tip": "完全一致",
+      "filter_type_not_support": "タイプフィルタリングは、Redis 5.x 以前のバージョンには対応していません"
     },
     "export": {
       "name": "データをエクスポート",
@@ -396,6 +403,14 @@
       "website": "公式ウェブサイト"
     }
   },
+  "login": {
+    "username_placeholder": "ユーザー名を入力",
+    "password_placeholder": "パスワードを入力",
+    "submit": "ログイン",
+    "too_many_attempts": "試行回数が多すぎます",
+    "invalid_credentials": "ユーザー名またはパスワードが正しくありません",
+    "network_error": "ネットワークエラー"
+  },
   "menu": {
     "minimise": "最小化",
     "maximise": "最大化",
@@ -417,7 +432,7 @@
     "exec_time": "実行時間",
     "server": "サーバー",
     "cmd": "コマンド",
-    "cost_time": "時間",
+    "cost_time": "所要時間",
     "refresh": "すぐに更新"
   },
   "status": {
@@ -445,7 +460,7 @@
     "exec_time": "実行時間",
     "client": "クライアント",
     "cmd": "コマンド",
-    "cost_time": "時間"
+    "cost_time": "所要時間"
   },
   "monitor": {
     "title": "コマンドのモニタリング",
@@ -461,9 +476,9 @@
   },
   "pubsub": {
     "title": "パブ/サブ",
-    "publish": "公開",
-    "subscribe": "購読を開始",
-    "unsubscribe": "購読を解除",
+    "publish": "パブリッシュ",
+    "subscribe": "サブスクライブ開始",
+    "unsubscribe": "サブスクライブ解除",
     "clear": "メッセージをクリア",
     "time": "時間",
     "filter": "フィルター",

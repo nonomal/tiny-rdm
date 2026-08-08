@@ -1,13 +1,15 @@
 <script setup>
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
-import { computed, defineExpose, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import 'xterm/css/xterm.css'
 import { EventsEmit, EventsOff, EventsOn } from 'wailsjs/runtime/runtime.js'
-import { get, isEmpty, set } from 'lodash'
+import { get, isEmpty, set, size, trim } from 'lodash'
 import { CloseCli, StartCli } from 'wailsjs/go/services/cliService.js'
 import usePreferencesStore from 'stores/preferences.js'
 import { i18nGlobal } from '@/utils/i18n.js'
+import wcwidth from 'wcwidth'
+import { isWeb } from '@/utils/platform.js'
 
 const props = defineProps({
     name: String,
@@ -26,6 +28,31 @@ let termInst = null
  * @type {xterm-addon-fit.FitAddon|null}
  */
 let fitAddonInst = null
+
+const nonPrintableKeys = [
+    'F1',
+    'F2',
+    'F3',
+    'F4',
+    'F5',
+    'F6',
+    'F7',
+    'F8',
+    'F9',
+    'F10',
+    'F11',
+    'F12',
+    'Shift',
+    'CapsLock',
+    'Tab',
+    'Escape',
+    'ScrollLock',
+    'Pause',
+    'Insert',
+    'NumLock',
+    'ContextMenu',
+    'Process',
+]
 
 /**
  *
@@ -58,7 +85,7 @@ const newTerm = () => {
     return { term, fitAddon }
 }
 
-onMounted(() => {
+onMounted(async () => {
     const { term, fitAddon } = newTerm()
     termInst = term
     fitAddonInst = fitAddon
@@ -66,10 +93,25 @@ onMounted(() => {
 
     term.writeln('\r\n' + i18nGlobal.t('interface.cli_welcome'))
     // term.write('\x1b[4h') // insert mode
-    CloseCli(props.name)
-    StartCli(props.name, 0)
 
     EventsOn(`cmd:output:${props.name}`, receiveTermOutput)
+
+    // Wait for WebSocket with timeout (CLI needs it for real-time I/O, web mode only)
+    if (isWeb()) {
+        try {
+            const { WaitForWebSocket } = await import('wailsjs/runtime/runtime.js')
+            await Promise.race([
+                WaitForWebSocket(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('ws timeout')), 5000)),
+            ])
+        } catch {
+            console.warn('[cli] WebSocket not connected, some features may be limited')
+        }
+    }
+
+    await CloseCli(props.name)
+    await StartCli(props.name, 0)
+
     fitAddon.fit()
     term.focus()
 })
@@ -137,6 +179,9 @@ let inputCursor = 0
 const inputHistory = []
 let historyIndex = 0
 let waitForOutput = false
+let isComposingBefore = false
+let ignore229 = false
+
 const onTermData = (data) => {
     if (termInst == null) {
         return
@@ -145,10 +190,6 @@ const onTermData = (data) => {
     if (data) {
         const cc = data.charCodeAt(0)
         switch (cc) {
-            case 127: // backspace
-                deleteInput(true)
-                return
-
             case 13: // enter
                 // try to process local command first
                 switch (getCurrentInput()) {
@@ -163,33 +204,14 @@ const onTermData = (data) => {
                         flushTermInput()
                         return
                 }
-
-            case 27:
-                switch (data.substring(1)) {
-                    case '[A': // arrow up
-                        changeHistory(true)
-                        return
-                    case '[B': // arrow down
-                        changeHistory(false)
-                        return
-                    case '[C': // arrow right ->
-                        moveInputCursor(1)
-                        return
-                    case '[D': // arrow left <-
-                        moveInputCursor(-1)
-                        return
-                    case '[3~': // del
-                        deleteInput(false)
-                        return
-                }
-
-            case 9: // tab
-                return
         }
-    }
 
-    updateInput(data)
-    // term.write(data)
+        // trim space prefix and suffix, it may be input via IME
+        if (size(data) > 1) {
+            data = trim(data)
+        }
+        updateInput(data)
+    }
 }
 
 /**
@@ -198,6 +220,19 @@ const onTermData = (data) => {
  * @return {boolean}
  */
 const onTermKey = (e) => {
+    // ignore first input when leave composing
+    if (!e.isComposing) {
+        if (isComposingBefore) {
+            ignore229 = true
+            isComposingBefore = false
+        } else {
+            ignore229 = false
+        }
+    } else if (e.isComposing) {
+        ignore229 = true
+        isComposingBefore = true
+    }
+
     if (e.type === 'keydown') {
         if (e.ctrlKey) {
             switch (e.key) {
@@ -250,9 +285,55 @@ const onTermKey = (e) => {
                     replaceTermInput()
                     newInputLine()
                     return false
+
+                case 'c': // interrupt and new line
+                    termInst.writeln('')
+                    replaceTermInput()
+                    newInputLine()
+                    return false
             }
             // block all ctrl key combinations input
             return false
+        } else {
+            switch (e.key) {
+                case 'Home': // move to head of line
+                    moveInputCursorTo(0)
+                    return false
+
+                case 'End': // move to tail of line
+                    moveInputCursorTo(Number.MAX_SAFE_INTEGER)
+                    return false
+
+                case 'Backspace':
+                    deleteInput(true)
+                    return false
+
+                case 'ArrowUp': // arrow up
+                case 'PageUp':
+                    changeHistory(true)
+                    return false
+                case 'ArrowDown': // arrow down
+                case 'PageDown':
+                    changeHistory(false)
+                    return false
+                case 'ArrowRight': // arrow right ->
+                    moveInputCursor(1)
+                    return false
+                case 'ArrowLeft': // arrow left <-
+                    moveInputCursor(-1)
+                    return false
+                case 'Delete': // del
+                    deleteInput(false)
+                    return false
+
+                default:
+                    if (e.altKey || e.altGraphKey || e.ctrlKey || e.metaKey || nonPrintableKeys.includes(e.key)) {
+                        return false
+                    } else if (e.keyCode === 229 && !ignore229) {
+                        updateInput(e.key)
+                        return false
+                    }
+            }
         }
     }
     return true
@@ -302,7 +383,8 @@ const moveInputCursorToEnd = () => {
 const moveInputCursorTo = (pos) => {
     const currentLine = getCurrentInput()
     inputCursor = Math.min(Math.max(0, pos), currentLine.length)
-    termInst.write(`\x1B[${prefixLen.value + inputCursor + 1}G`)
+    const cursorPos = wcwidth(currentLine.substring(0, inputCursor))
+    termInst.write(`\x1B[${prefixLen.value + cursorPos + 1}G`)
 }
 
 /**
@@ -376,7 +458,7 @@ const deleteInput2 = (back = false) => {
     let currentLine = getCurrentInput()
     if (back) {
         // delete until tail
-        currentLine = currentLine.substring(0, inputCursor - 1)
+        currentLine = currentLine.substring(0, inputCursor)
         inputCursor = currentLine.length
     } else {
         // delete until head
@@ -457,6 +539,10 @@ const newInputLine = () => {
         const pop = inputHistory.splice(historyIndex, 1)
         inputHistory[inputHistory.length - 1] = pop[0]
     }
+    // remove adjacent duplicated history
+    if (inputHistory.length > 1 && inputHistory[inputHistory.length - 1] === inputHistory[inputHistory.length - 2]) {
+        inputHistory.pop()
+    }
     if (get(inputHistory, inputHistory.length - 1, '')) {
         historyIndex = inputHistory.length
         updateCurrentInput('')
@@ -528,11 +614,13 @@ const receiveTermOutput = (data) => {
         return
     }
 
-    const { content = [], prompt } = data || {}
-    if (!isEmpty(content)) {
+    const { content, prompt } = data || {}
+    if (content instanceof Array) {
         for (const line of content) {
             termInst.write('\r\n' + line)
         }
+    } else {
+        termInst.write('\r\n\x1b[38;5;244m(nil)\x1b[0m')
     }
     if (!isEmpty(prompt)) {
         promptPrefix.value = prompt
@@ -558,7 +646,7 @@ const receiveTermOutput = (data) => {
 </style>
 
 <style lang="scss">
-.xterm-screen {
+.xterm {
     padding: 0 5px !important;
 }
 

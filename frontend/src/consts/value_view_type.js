@@ -10,6 +10,7 @@ export const formatTypes = {
     XML: 'XML',
     HEX: 'Hex',
     BINARY: 'Binary',
+    BITSET: 'BitSet',
 }
 
 /**
@@ -22,6 +23,7 @@ export const decodeTypes = {
     GZIP: 'GZip',
     DEFLATE: 'Deflate',
     ZSTD: 'ZStd',
+    LZ4: 'LZ4',
     BROTLI: 'Brotli',
     MSGPACK: 'Msgpack',
     PHP: 'PHP',

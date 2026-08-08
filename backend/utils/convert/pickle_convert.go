@@ -1,6 +1,9 @@
 package convutil
 
-import "os/exec"
+import (
+	"os/exec"
+	"runtime"
+)
 
 type PickleConvert struct {
 	CmdConvert
@@ -11,6 +14,21 @@ import base64
 import json
 import pickle
 import sys
+from datetime import datetime
+
+def default_serializer(o):
+    if isinstance(o, datetime):
+        return o.isoformat()
+    return str(o)
+
+def object_hook(obj):
+    for k, v in obj.items():
+        if isinstance(v, str):
+            try:
+                obj[k] = datetime.fromisoformat(v)
+            except ValueError:
+                pass
+    return obj
 
 if __name__ == "__main__":
     if len(sys.argv) >= 3:
@@ -21,11 +39,11 @@ if __name__ == "__main__":
             if action == 'decode':
                 decoded = base64.b64decode(content)
                 obj = pickle.loads(decoded)
-                unserialized = json.dumps(obj, ensure_ascii=False)
+                unserialized = json.dumps(obj, ensure_ascii=False, default=default_serializer)
                 print(base64.b64encode(unserialized.encode('utf-8')).decode('utf-8'))
             elif action == 'encode':
                 decoded = base64.b64decode(content)
-                obj = json.loads(decoded)
+                obj = json.loads(decoded, object_hook=object_hook)
                 serialized = pickle.dumps(obj)
                 print(base64.b64encode(serialized).decode('utf-8'))
         except:
@@ -49,6 +67,14 @@ func NewPickleConvert() *PickleConvert {
 		}
 	}
 	// check if pickle available
+	if runtime.GOOS == "darwin" {
+		// the xcode-select installation prompt may appear on macOS
+		// so check it manually in advance
+		if _, err = exec.LookPath("xcode-select"); err != nil {
+			return nil
+		}
+	}
+
 	if _, err = runCommand(c.DecodePath, "-c", "import pickle"); err != nil {
 		return nil
 	}

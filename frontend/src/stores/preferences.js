@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
 import { lang } from '@/langs/index.js'
-import { cloneDeep, findIndex, get, isEmpty, join, map, merge, pick, set, some, split } from 'lodash'
+import { cloneDeep, findIndex, get, isEmpty, join, map, pick, set, some, split } from 'lodash'
 import {
     CheckForUpdate,
+    GetAppVersion,
     GetBuildInDecoder,
     GetFontList,
     GetPreferences,
@@ -15,6 +16,7 @@ import { enUS, NButton, NSpace, useOsTheme, zhCN } from 'naive-ui'
 import { h, nextTick } from 'vue'
 import { compareVersion } from '@/utils/version.js'
 import { typesIconStyle } from '@/consts/support_redis_type.js'
+import { TextAlignType } from '@/consts/text_align_type.js'
 
 const osTheme = useOsTheme()
 const usePreferencesStore = defineStore('preferences', {
@@ -63,6 +65,7 @@ const usePreferencesStore = defineStore('preferences', {
             showFolding: true,
             dropText: true,
             links: true,
+            entryTextAlign: TextAlignType.Center,
         },
         cli: {
             fontFamily: [],
@@ -73,6 +76,7 @@ const usePreferencesStore = defineStore('preferences', {
         decoder: [],
         lastPref: {},
         fontList: [],
+        appVersion: '',
     }),
     getters: {
         getSeparator() {
@@ -97,6 +101,14 @@ const usePreferencesStore = defineStore('preferences', {
         },
 
         /**
+         * all themes' name
+         * @returns {string[]}
+         */
+        allThemes() {
+            return this.themeOption.map((o) => o.value)
+        },
+
+        /**
          * all available language
          * @returns {{label: string, value: string}[]}
          */
@@ -110,6 +122,14 @@ const usePreferencesStore = defineStore('preferences', {
                 label: 'preferences.general.system_lang',
             })
             return options
+        },
+
+        /**
+         * all languages' name
+         * @returns {string[]}
+         */
+        allLangs() {
+            return this.langOption.map((o) => o.value)
         },
 
         /**
@@ -271,6 +291,10 @@ const usePreferencesStore = defineStore('preferences', {
         keyIconType() {
             return get(this.general, 'keyIconStyle', typesIconStyle.SHORT)
         },
+
+        entryTextAlign() {
+            return get(this.editor, 'entryTextAlign', TextAlignType.Center)
+        },
     },
     actions: {
         _applyPreferences(data) {
@@ -281,7 +305,7 @@ const usePreferencesStore = defineStore('preferences', {
 
         /**
          * load preferences from local
-         * @returns {Promise<void>}
+         * @returns {Promise<boolean>}
          */
         async loadPreferences() {
             const { success, data } = await GetPreferences()
@@ -307,6 +331,7 @@ const usePreferencesStore = defineStore('preferences', {
                 }
                 i18nGlobal.locale.value = this.currentLanguage
             }
+            return success
         },
 
         /**
@@ -339,12 +364,23 @@ const usePreferencesStore = defineStore('preferences', {
         },
 
         /**
+         * load app version
+         * @return {Promise<void>}
+         */
+        async loadAppVersion() {
+            const { success, data } = await GetAppVersion()
+            if (success && data?.version) {
+                this.appVersion = data.version
+            }
+        },
+
+        /**
          * save preferences to local
          * @returns {Promise<boolean>}
          */
         async savePreferences() {
             const pf = pick(this, ['behavior', 'general', 'editor', 'cli', 'decoder'])
-            const { success, msg } = await SetPreferences(pf)
+            const { success } = await SetPreferences(pf)
             return success === true
         },
 
@@ -421,15 +457,15 @@ const usePreferencesStore = defineStore('preferences', {
                 return false
             }
 
-            this.decoder[idx] = merge(this.decoder[idx], {
-                name: newName || name,
-                enable,
-                auto,
-                encodePath,
-                encodeArgs,
-                decodePath,
-                decodeArgs,
-            })
+            let selDecoder = this.decoder[idx]
+            selDecoder.name = newName || name
+            selDecoder.enable = enable
+            selDecoder.auto = auto
+            selDecoder.encodePath = encodePath
+            selDecoder.encodeArgs = encodeArgs
+            selDecoder.decodePath = decodePath
+            selDecoder.decodeArgs = decodeArgs
+            this.decoder[idx] = selDecoder
             return true
         },
 
@@ -461,15 +497,31 @@ const usePreferencesStore = defineStore('preferences', {
             try {
                 const { success, data = {} } = await CheckForUpdate()
                 if (success) {
-                    const { version = 'v1.0.0', latest, page_url: pageUrl } = data
+                    const {
+                        version = 'v1.0.0',
+                        latest,
+                        download_page: pageUrl = {},
+                        description = {},
+                        sponsor = [],
+                        banner = [],
+                    } = data
+                    const downUrl = pageUrl[this.currentLanguage] || pageUrl['en']
+                    const descStr = description[this.currentLanguage] || description['en']
+                    // save sponsor ad
+                    if (!isEmpty(sponsor)) {
+                        localStorage.setItem('sponsor_ad', JSON.stringify(sponsor))
+                    }
+                    if (!isEmpty(banner)) {
+                        localStorage.setItem('banner', JSON.stringify(banner))
+                    }
                     if (
-                        (manual || latest > this.general.skipVersion) &&
+                        (manual || compareVersion(latest, this.general.skipVersion) !== 0) &&
                         compareVersion(latest, version) > 0 &&
-                        !isEmpty(pageUrl)
+                        !isEmpty(downUrl)
                     ) {
                         const notiRef = $notification.show({
-                            title: i18nGlobal.t('dialogue.upgrade.title'),
-                            content: i18nGlobal.t('dialogue.upgrade.new_version_tip', { ver: latest }),
+                            title: `${i18nGlobal.t('dialogue.upgrade.title')} - ${latest}`,
+                            content: descStr || i18nGlobal.t('dialogue.upgrade.new_version_tip', { ver: latest }),
                             action: () =>
                                 h('div', { class: 'flex-box-h flex-item-expand' }, [
                                     h(NSpace, { wrapItem: false }, () => [
@@ -502,13 +554,13 @@ const usePreferencesStore = defineStore('preferences', {
                                                 type: 'primary',
                                                 size: 'small',
                                                 secondary: true,
-                                                onClick: () => BrowserOpenURL(pageUrl),
+                                                onClick: () => BrowserOpenURL(downUrl),
                                             },
                                             () => i18nGlobal.t('dialogue.upgrade.download_now'),
                                         ),
                                     ]),
                                 ]),
-                            onPositiveClick: () => BrowserOpenURL(pageUrl),
+                            onPositiveClick: () => BrowserOpenURL(downUrl),
                         })
                         return
                     }

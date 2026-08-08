@@ -2,7 +2,7 @@
 <a href="https://github.com/tiny-craft/tiny-rdm/"><img src="build/appicon.png" width="120"/></a>
 </div>
 <h1 align="center">Tiny RDM</h1>
-<h4 align="center"><strong><a href="/">English</a></strong> | 简体中文</h4>
+<h4 align="center"><a href="/">English</a> | <strong>简体中文</strong> | <a href="https://github.com/tiny-craft/tiny-rdm/blob/main/README_tw.md">繁體中文</a> | <a href="https://github.com/tiny-craft/tiny-rdm/blob/main/README_ja.md">日本語</a> | <a href="https://github.com/tiny-craft/tiny-rdm/blob/main/README_ko.md">한국어</a> | <a href="https://github.com/tiny-craft/tiny-rdm/blob/main/README_fr.md">Français</a> | <a href="https://github.com/tiny-craft/tiny-rdm/blob/main/README_es.md">Español</a> | <a href="https://github.com/tiny-craft/tiny-rdm/blob/main/README_pt.md">Português (BR)</a> | <a href="https://github.com/tiny-craft/tiny-rdm/blob/main/README_ru.md">Русский</a> | <a href="https://github.com/tiny-craft/tiny-rdm/blob/main/README_tr.md">Türkçe</a></h4>
 <div align="center">
 
 [![License](https://img.shields.io/github/license/tiny-craft/tiny-rdm)](https://github.com/tiny-craft/tiny-rdm/blob/main/LICENSE)
@@ -10,8 +10,9 @@
 ![GitHub All Releases](https://img.shields.io/github/downloads/tiny-craft/tiny-rdm/total)
 [![GitHub stars](https://img.shields.io/github/stars/tiny-craft/tiny-rdm)](https://github.com/tiny-craft/tiny-rdm/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/tiny-craft/tiny-rdm)](https://github.com/tiny-craft/tiny-rdm/fork)
+[![AtomGitStars](https://atomgit.com/tiny-craft/tiny-rdm/star/badge.svg)](https://atomgit.com/tiny-craft/tiny-rdm)
 
-<strong>一个现代化轻量级的跨平台Redis桌面客户端，支持Mac、Windows和Linux</strong>
+<str>一个现代化轻量级的跨平台Redis桌面客户端，支持Mac、Windows和Linux，同时提供Web版本，可通过Docker快速部署</strong>
 </div>
 
 <picture>
@@ -46,7 +47,7 @@
 * 支持导入/导出数据
 * 支持发布订阅
 * 支持导入/导出连接配置
-* 自定义数据展示编码/解码([这是操作指引](https://redis.tinycraft.cc/zh/guide/custom-decoder/))
+* 自定义数据展示编码/解码([这是操作指引](https://tinyrdm.com/zh/guide/custom-decoder/))
 
 ## 安装
 
@@ -57,12 +58,12 @@
 >  sudo xattr -d com.apple.quarantine /Applications/Tiny\ RDM.app
 > ```
 
-## 构建项目
+## 构建客户端
 
 ### 运行环境要求
 
 * Go（最新版本）
-* Node.js >= 16
+* Node.js >= 20
 * NPM >= 9
 
 ### 安装wails
@@ -96,6 +97,68 @@ npm install
 wails dev
 ```
 
+## Docker 部署
+
+除桌面客户端外，Tiny RDM 还提供 Web 版本，可通过 Docker 快速部署。
+
+### 使用 Docker Compose（推荐）
+
+创建 `docker-compose.yml` 文件：
+
+```yaml
+services:
+  tinyrdm:
+    image: ghcr.io/tiny-craft/tiny-rdm:latest
+    container_name: tinyrdm
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    environment:
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=tinyrdm
+    volumes:
+      - ./data:/app/tinyrdm
+```
+
+启动服务：
+
+```bash
+docker compose up -d
+```
+
+启动后访问 `http://localhost:8086`，使用上面配置的用户名密码登录。
+
+### 使用 Docker 命令
+
+```bash
+docker run -d --name tinyrdm \
+  -p 8086:8086 \
+  -e ADMIN_USERNAME=admin \
+  -e ADMIN_PASSWORD=tinyrdm \
+  -v ./data:/app/tinyrdm \
+  ghcr.io/tiny-craft/tiny-rdm:latest
+```
+
+### 环境变量说明
+
+| 变量               | 说明    | 默认值 |
+|------------------|-------|-----|
+| `ADMIN_USERNAME` | 登录用户名 | -   |
+| `ADMIN_PASSWORD` | 登录密码  | -   |
+
+## 感谢赞助
+
+感谢以下服务商提供主机赞助
+
+<table>
+<tr>
+<td width="200"><a href="https://flymux.com/register?promo=TINYRDM"><img alt="FlyMux" src="docs/images/flymux_logo.png"/></a></td>
+<td>感谢 FlyMux 赞助了本项目！FlyMux 致力于提供 Claude Code 与 Codex 官方高稳定中转服务，专注于为开发者打造流畅、便捷的 AI 编程接入体验。FlyMux 为 TinyRDM 用户提供了专属特别福利：通过<a href="https://flymux.com/register?promo=TINYRDM">此链接</a>账号直接到账 $5 赠送额度！</td>
+</tr>
+<td width="200"><a href="https://www.notidc.com/"><img src="docs/images/notidc_logo.png" alt="NotiDC"></a></td>
+<td>感谢 NotiDC 赞助了本项目！NotIDC 提供高性能云服务器、裸金属、CDN 及安全防护等基础设施服务，具备全球网络覆盖与稳定的抗 DDoS 能力，助力开发者高效部署与扩展应用。</td>
+</table>
+
 ## 关于
 
 如果你也同为独立开发者（团队），喜欢开源，或者对Tiny Craft的相关产品感兴趣，可以关注微信公众号或者加入QQ群，探讨心得，反馈意见，交个朋友。
@@ -105,6 +168,10 @@ wails dev
 我会不定期更新一些关于独立开发的思考和感悟，以及独立产品的介绍，欢迎扫码关注~👏
 
 <img src="docs/images/wechat_official.png" alt="wechat" width="360" />
+
+### B站官方账号
+
+<img src="docs/images/bilibili_official.png" alt="bilibili" width="360" />
 
 ### 独立开发互助QQ群
 

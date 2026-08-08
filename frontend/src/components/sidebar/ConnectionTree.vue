@@ -295,6 +295,7 @@ const openConnection = async (name) => {
             tabStore.upsertTab({
                 server: name,
                 db: browserStore.getSelectedDB(name),
+                forceSwitch: true,
             })
         }
     } catch (e) {
@@ -436,14 +437,21 @@ const findSiblingsAndIndex = (node, nodes) => {
     return [null, null]
 }
 
+const isRootNode = (node) => {
+    return connectionStore.connections.some((item) => item.key === node.key)
+}
+
 // delay save until drop stopped after 2 seconds
-const saveSort = debounce(connectionStore.saveConnectionSorted, 2000, { trailing: true })
+const saveSort = debounce(connectionStore.saveConnectionSorted, 1500, { trailing: true })
 const handleDrop = ({ node, dragNode, dropPosition }) => {
     const [dragNodeSiblings, dragNodeIndex] = findSiblingsAndIndex(dragNode, connectionStore.connections)
     if (dragNodeSiblings === null || dragNodeIndex === null) {
         return
     }
     if (node.type === ConnectionType.Group && dragNode.type === ConnectionType.Group) {
+        return
+    }
+    if (dragNode.type === ConnectionType.Group && !isRootNode(node)) {
         return
     }
     dragNodeSiblings.splice(dragNodeIndex, 1)
@@ -542,7 +550,7 @@ const onCancelOpen = () => {
 </template>
 
 <style lang="scss" scoped>
-@import '@/styles/content';
+@use '@/styles/content';
 
 .connection-tree-wrapper {
     height: 100%;

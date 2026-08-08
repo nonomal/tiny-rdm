@@ -3,9 +3,8 @@ package services
 import (
 	"context"
 	"encoding/json"
-	"github.com/adrg/sysfont"
-	runtime2 "github.com/wailsapp/wails/v2/pkg/runtime"
 	"net/http"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -15,6 +14,8 @@ import (
 	"tinyrdm/backend/utils/coll"
 	convutil "tinyrdm/backend/utils/convert"
 	sliceutil "tinyrdm/backend/utils/slice"
+
+	"github.com/adrg/sysfont"
 )
 
 type preferencesService struct {
@@ -50,6 +51,7 @@ func (p *preferencesService) SetPreferences(pf types.Preferences) (resp types.JS
 		return
 	}
 
+	p.UpdateEnv()
 	resp.Success = true
 	return
 }
@@ -114,6 +116,11 @@ func (p *preferencesService) GetBuildInDecoder() (resp types.JSResp) {
 	return
 }
 
+func (p *preferencesService) GetLanguage() string {
+	pref := p.pref.GetPreferences()
+	return pref.General.Language
+}
+
 func (p *preferencesService) SetAppVersion(ver string) {
 	if !strings.HasPrefix(ver, "v") {
 		p.clientVersion = "v" + ver
@@ -162,7 +169,7 @@ func (p *preferencesService) GetWindowPosition(ctx context.Context) (x, y int) {
 	x, y = data.Behavior.WindowPosX, data.Behavior.WindowPosY
 	width, height := data.Behavior.WindowWidth, data.Behavior.WindowHeight
 	var screenWidth, screenHeight int
-	if screens, err := runtime2.ScreenGetAll(ctx); err == nil {
+	if screens, err := ScreenGetAll(ctx); err == nil {
 		for _, screen := range screens {
 			if screen.IsCurrent {
 				screenWidth, screenHeight = screen.Size.Width, screen.Size.Height
@@ -215,22 +222,31 @@ func (p *preferencesService) GetDecoder() []convutil.CmdConvert {
 	})
 }
 
-type latestRelease struct {
-	Name    string `json:"name"`
-	TagName string `json:"tag_name"`
-	Url     string `json:"url"`
-	HtmlUrl string `json:"html_url"`
+type sponsorItem struct {
+	Name   string   `json:"name"`
+	Link   string   `json:"link"`
+	Region []string `json:"region"`
+}
+
+type upgradeInfo struct {
+	Version      string            `json:"version"`
+	Changelog    map[string]string `json:"changelog"`
+	Description  map[string]string `json:"description"`
+	DownloadURl  map[string]string `json:"download_url"`
+	DownloadPage map[string]string `json:"download_page"`
+	Sponsor      []sponsorItem     `json:"sponsor,omitempty"`
 }
 
 func (p *preferencesService) CheckForUpdate() (resp types.JSResp) {
 	// request latest version
-	res, err := http.Get("https://api.github.com/repos/tiny-craft/tiny-rdm/releases/latest")
+	//res, err := http.Get("https://api.github.com/repos/tiny-craft/tiny-rdm/releases/latest")
+	res, err := http.Get("https://tinyrdm.com/client_version.json")
 	if err != nil || res.StatusCode != http.StatusOK {
 		resp.Msg = "network error"
 		return
 	}
 
-	var respObj latestRelease
+	var respObj upgradeInfo
 	err = json.NewDecoder(res.Body).Decode(&respObj)
 	if err != nil {
 		resp.Msg = "invalid content"
@@ -240,9 +256,20 @@ func (p *preferencesService) CheckForUpdate() (resp types.JSResp) {
 	// compare with current version
 	resp.Success = true
 	resp.Data = map[string]any{
-		"version":  p.clientVersion,
-		"latest":   respObj.TagName,
-		"page_url": respObj.HtmlUrl,
+		"version":       p.clientVersion,
+		"latest":        respObj.Version,
+		"description":   respObj.Description,
+		"download_page": respObj.DownloadPage,
+		"sponsor":       respObj.Sponsor,
 	}
 	return
+}
+
+// UpdateEnv Update System Environment
+func (p *preferencesService) UpdateEnv() {
+	if p.GetLanguage() == "zh" {
+		os.Setenv("LANG", "zh_CN.UTF-8")
+	} else {
+		os.Unsetenv("LANG")
+	}
 }
